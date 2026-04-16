@@ -9,8 +9,8 @@
 | 3 | AI Pitch Builder — backend | 5–8 | ✅ Complete |
 | 4 | AI Pitch Builder — frontend | 9–11 | ✅ Complete |
 | 5 | Soroban MilestoneTracker contract | 12–15 | ✅ Complete |
-| 6 | Founder dashboard & public profile | 16–19 | 🔜 Next |
-| 7 | Investor matching & discovery | 20–24 | ⏳ Pending |
+| 6 | Founder dashboard & public profile | 16–19 | ✅ Complete |
+| 7 | Investor matching & discovery | 20–24 | 🔜 Next |
 | 8 | Testing, polish & mainnet launch | 25–30 | ⏳ Pending |
 
 ---
@@ -373,4 +373,52 @@ event: error   → { error: string }           on failure
 ```bash
 ./contracts/deploy.sh testnet
 # Copy MILESTONE_CONTRACT_ID to .env
+```
+
+---
+
+## Session 6 — Founder Dashboard & Public Profile ✅
+**Days 16–19**
+
+### What was built
+
+**API**
+- `lib/profile-service.ts` — aggregates founder + pitches + milestones + completeness score
+- `routes/profile.ts` — 3 endpoints:
+  - `GET /api/profiles/:id` — public profile by founder ID
+  - `GET /api/profiles/key/:publicKey` — look up by Stellar public key
+  - `GET /api/profiles?q=` — founder search
+- `__tests__/profile.test.ts` — route tests
+
+**Web Components** (`apps/web/src/components/profile/`)
+- `profile-avatar.tsx` — initials avatar with color seeded from public key
+- `completeness-bar.tsx` — profile completeness 0–100 with next-step tips
+- `pitch-preview-card.tsx` — all 6 sections inline with per-section scores
+- `milestone-timeline.tsx` — chronological timeline with ⛓ on-chain badges
+- `share-button.tsx` — copy profile URL to clipboard
+
+**Pages**
+- `app/profile/[id]/page.tsx` — server component with OG meta generation
+- `app/profile/[id]/profile-content.tsx` — full investor-facing view:
+  - Avatar, name, bio, location, social links
+  - Stats: pitches, milestones, on-chain count, completeness %
+  - Top completed pitch with all sections + scores
+  - Milestone timeline with explorer links
+  - Share button + Stellar network badge
+  - "Request connection" CTA for investors
+  - Own-profile banner with edit link
+
+- `app/settings/profile/page.tsx` + `profile-settings.tsx`:
+  - Form: name, bio, location, Twitter, GitHub, LinkedIn, website
+  - Live completeness preview in sidebar
+  - Profile improvement tips
+  - Avatar preview updates as you type
+
+### Key files
+```
+apps/api/src/lib/profile-service.ts
+apps/api/src/routes/profile.ts
+apps/web/src/components/profile/*.tsx  (5 components)
+apps/web/src/app/profile/[id]/profile-content.tsx
+apps/web/src/app/settings/profile/profile-settings.tsx
 ```

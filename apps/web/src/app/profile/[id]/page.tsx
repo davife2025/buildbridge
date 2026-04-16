@@ -1,19 +1,28 @@
 import type { Metadata } from 'next';
+import { ProfileContent } from './profile-content';
 
-export const metadata: Metadata = { title: 'Founder Profile' };
+interface Props { params: { id: string } }
 
-export default function ProfilePage({ params }: { params: { id: string } }) {
-  return (
-    <main className="min-h-screen p-8">
-      <div className="mx-auto max-w-3xl">
-        <div className="mb-2 inline-block rounded-full bg-brand-400/10 px-3 py-1 text-xs text-brand-400">
-          Session 6
-        </div>
-        <h1 className="mb-2 text-3xl font-bold">Founder Profile</h1>
-        <p className="text-white/40">
-          Public founder profile for <code className="text-white/60">{params.id}</code> — coming in Session 6.
-        </p>
-      </div>
-    </main>
-  );
+const API_URL = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:4000';
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  try {
+    const res = await fetch(`${API_URL}/api/profiles/${params.id}`, { next: { revalidate: 60 } });
+    if (!res.ok) return { title: 'Founder Profile | BuildBridge' };
+    const profile = await res.json() as { name: string | null; bio: string | null; onChainMilestoneCount: number; topPitch: { projectName: string } | null };
+    const name = profile.name ?? 'A founder';
+    const title = profile.topPitch ? `${name} — ${profile.topPitch.projectName} | BuildBridge` : `${name} | BuildBridge`;
+    const description = profile.bio ?? `${name} is building on Stellar with ${profile.onChainMilestoneCount} on-chain milestones.`;
+    return {
+      title, description,
+      openGraph: { title, description, type: 'profile', url: `https://buildbridge.xyz/profile/${params.id}`, siteName: 'BuildBridge' },
+      twitter: { card: 'summary', title, description },
+    };
+  } catch {
+    return { title: 'Founder Profile | BuildBridge' };
+  }
+}
+
+export default function ProfilePage({ params }: Props) {
+  return <ProfileContent founderId={params.id} />;
 }
