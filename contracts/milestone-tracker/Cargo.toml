@@ -1,21 +1,23 @@
 [package]
 name = "milestone-tracker"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
-description = "BuildBridge MilestoneTracker — Soroban smart contract for on-chain founder milestone verification"
+description = "BuildBridge MilestoneTracker — Soroban smart contract"
 license = "MIT"
+publish = false
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 
 [features]
+default = []
 testutils = ["soroban-sdk/testutils"]
 
 [dependencies]
-soroban-sdk = { version = "21.0.0", features = [] }
+soroban-sdk = { version = "21.7.6" }
 
 [dev-dependencies]
-soroban-sdk = { version = "21.0.0", features = ["testutils"] }
+soroban-sdk = { version = "21.7.6", features = ["testutils"] }
 
 [profile.release]
 opt-level = "z"

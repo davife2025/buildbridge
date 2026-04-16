@@ -8,8 +8,8 @@
 | 2 | Database & auth layer | 3–4 | ✅ Complete |
 | 3 | AI Pitch Builder — backend | 5–8 | ✅ Complete |
 | 4 | AI Pitch Builder — frontend | 9–11 | ✅ Complete |
-| 5 | Soroban MilestoneTracker contract | 12–15 | 🔜 Next |
-| 6 | Founder dashboard & public profile | 16–19 | ⏳ Pending |
+| 5 | Soroban MilestoneTracker contract | 12–15 | ✅ Complete |
+| 6 | Founder dashboard & public profile | 16–19 | 🔜 Next |
 | 7 | Investor matching & discovery | 20–24 | ⏳ Pending |
 | 8 | Testing, polish & mainnet launch | 25–30 | ⏳ Pending |
 
@@ -316,4 +316,61 @@ event: error   → { error: string }           on failure
   → Repeat for all 6 sections
   → "Score my pitch →" button appears
   → Click → PitchScorePanel shows overall score + feedback
+```
+
+---
+
+## Session 5 — Soroban MilestoneTracker Contract ✅
+**Days 12–15**
+
+### What was built
+
+**Rust Contract** (`contracts/milestone-tracker/src/lib.rs`)
+- Full implementation with `init`, `record_milestone`, `verify_milestone`
+- Queries: `get_milestone`, `get_founder_milestone_ids`, `total_milestones`, `is_verified`
+- Admin auth — only deployer can verify milestones
+- Founder auth — `require_auth()` prevents spoofing
+- Category validation — 6 valid categories enforced on-chain
+- 7 unit tests: init, double-init panic, sequential IDs, field validation,
+  verify flow, non-admin panic, founder isolation, invalid category panic
+
+**TypeScript Contract Client** (`packages/stellar/src/contracts/milestone.ts`)
+- Real Soroban SDK implementation — replaces Session 1 stub
+- `buildRecordMilestoneTx()` — builds unsigned XDR for Freighter to sign
+- `submitRecordMilestone()` — submits + polls for confirmation (10 × 3s)
+- `getFounderMilestoneIds()` — read-only ledger query
+- `getMilestone()` — single milestone read
+- `getExplorerUrl()` / `getContractUrl()` — Stellar Expert links
+
+**API** (`apps/api/src/`)
+- `lib/milestone-service.ts` — DB + contract coordination
+- `routes/milestone.ts` — 5 endpoints:
+  - `GET /api/milestones` — list milestones
+  - `GET /api/milestones/:id` — get one
+  - `POST /api/milestones` — create DB record (Step 1)
+  - `POST /api/milestones/build-tx` — build unsigned XDR (Step 2)
+  - `POST /api/milestones/submit` — submit signed XDR (Step 3)
+  - `DELETE /api/milestones/:id` — delete (off-chain only)
+- `__tests__/milestone.test.ts` — 7 route tests
+
+**Web** (`apps/web/src/`)
+- `lib/milestone-api.ts` — typed API client
+- `hooks/use-milestones.ts` — full 4-step on-chain flow
+- `components/milestones/milestone-card.tsx` — card with on-chain badge + explorer link
+- `components/milestones/record-milestone-modal.tsx` — form + 5-step progress stepper
+- `app/milestones/milestones-content.tsx` — full milestones page
+
+### On-chain flow
+```
+1. POST /api/milestones          → create DB record
+2. POST /api/milestones/build-tx → get unsigned Soroban XDR
+3. Freighter.signTransaction()   → user signs in browser
+4. POST /api/milestones/submit   → submit + confirm on Stellar
+5. DB updated with txHash + onChainId
+```
+
+### Deploy to testnet
+```bash
+./contracts/deploy.sh testnet
+# Copy MILESTONE_CONTRACT_ID to .env
 ```
