@@ -7,8 +7,8 @@
 | 1 | Project setup & monorepo config | 1–2 | ✅ Complete |
 | 2 | Database & auth layer | 3–4 | ✅ Complete |
 | 3 | AI Pitch Builder — backend | 5–8 | ✅ Complete |
-| 4 | AI Pitch Builder — frontend | 9–11 | 🔜 Next |
-| 5 | Soroban MilestoneTracker contract | 12–15 | ⏳ Pending |
+| 4 | AI Pitch Builder — frontend | 9–11 | ✅ Complete |
+| 5 | Soroban MilestoneTracker contract | 12–15 | 🔜 Next |
 | 6 | Founder dashboard & public profile | 16–19 | ⏳ Pending |
 | 7 | Investor matching & discovery | 20–24 | ⏳ Pending |
 | 8 | Testing, polish & mainnet launch | 25–30 | ⏳ Pending |
@@ -267,4 +267,53 @@ event: chunk   → { chunk: string }           raw Claude text delta
 event: section → { section, data }           full parsed section JSON
 event: done    → { score: number }           stream complete
 event: error   → { error: string }           on failure
+```
+
+---
+
+## Session 4 — AI Pitch Builder (Frontend) ✅
+**Days 9–11**
+
+### What was built
+
+**Components** (`apps/web/src/components/pitch/`)
+- `pitch-stepper.tsx` — section progress sidebar with scores + completion indicators
+- `pitch-header.tsx` — project name, status badge, save + score action buttons
+- `pitch-score-panel.tsx` — modal with score ring, strengths, and top improvements
+- `create-pitch-modal.tsx` — new pitch name + tagline entry form
+- `pitch-list-card.tsx` — compact card for pitch list view with score ring
+- `section-card.tsx` — (from S3) updated: streaming cursor animation, suggestions
+- `refine-modal.tsx` — (from S3) textarea input for AI refinement
+
+**Pages** (`apps/web/src/app/pitch-builder/`)
+- `page.tsx` + `pitch-builder-index.tsx` — pitch list + create flow
+- `[id]/page.tsx` + `[id]/pitch-editor.tsx` — full pitch editor:
+  - Sticky stepper sidebar (desktop)
+  - All 6 section cards with live streaming AI text
+  - Refine modal → streams response → card updates in real time
+  - Save version button
+  - Score pitch CTA when all sections done
+  - Score panel modal with Claude feedback
+
+**Dashboard**
+- `dashboard-content.tsx` — updated with recent pitches list + score badges
+
+### User flow
+```
+/pitch-builder
+  → Click "+ New pitch"
+  → CreatePitchModal (name + tagline)
+  → Redirect to /pitch-builder/:id
+
+/pitch-builder/:id
+  → See 6 empty section cards
+  → Click "Write" on any card
+  → RefineModal: type in your own words
+  → Click "Refine with AI →"
+  → Modal closes, card shows streaming cursor
+  → Claude streams response token by token
+  → Section card fills with polished content + score bar
+  → Repeat for all 6 sections
+  → "Score my pitch →" button appears
+  → Click → PitchScorePanel shows overall score + feedback
 ```
