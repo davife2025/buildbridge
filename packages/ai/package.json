@@ -1,8 +1,18 @@
 {
   "name": "@buildbridge/ai",
   "version": "0.1.0",
-  "main": "src/index.ts",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "lint": "eslint src --ext .ts",
+    "type-check": "tsc --noEmit"
+  },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.24.0"
+  },
+  "devDependencies": {
+    "@buildbridge/config-typescript": "*",
+    "typescript": "^5.4.0"
   }
 }

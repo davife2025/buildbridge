@@ -1,0 +1,10 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "cd ../.. && npm run build --filter=@buildbridge/web",
+  "outputDirectory": ".next",
+  "installCommand": "cd ../.. && npm install",
+  "env": {
+    "NEXT_PUBLIC_API_URL": "@next_public_api_url",
+    "NEXT_PUBLIC_STELLAR_NETWORK": "@next_public_stellar_network"
+  }
+}

@@ -1,76 +1,122 @@
 # BuildBridge 🌉
 
-> **Where builders meet capital** — An agentic AI platform on Stellar that helps founders craft investor-ready pitches, verify traction on-chain, and connect with the right investors.
+> **Where builders meet capital**
 
-## Overview
+An Agentic AI platform on Stellar that helps founders craft investor-ready pitches, verify traction on-chain, and connect with the right investors.
 
-BuildBridge solves the "pitch gap" — the disconnect between great builders and the capital they need. Most founders, especially in emerging markets, lack access to structured guidance, investor networks, and tools to present their projects compellingly.
+[![CI](https://github.com/buildbridge/buildbridge/actions/workflows/ci.yml/badge.svg)](https://github.com/buildbridge/buildbridge/actions)
 
-We combine **Agentic AI** with the **Stellar blockchain** to:
-- 🤖 Guide founders through building a compelling investor pitch
-- ⛓️ Record and verify milestones on-chain via Soroban smart contracts
-- 🤝 Match founders with the right investors based on stage, sector & geography
-- 📊 Provide a transparent, verifiable founder profile for investor due diligence
+---
+
+## The Problem
+
+Most founders, especially in emerging markets like Africa, fail to raise not because their ideas lack merit — but because they can't communicate their value effectively to VCs and investors. BuildBridge closes the pitch gap.
+
+## What We Build
+
+| Feature | Description |
+|---|---|
+| 🤖 AI Pitch Builder | Agentic AI (Claude) guides founders section-by-section through their pitch |
+| ⛓️ On-Chain Milestones | Key achievements recorded via Soroban smart contracts on Stellar |
+| 🎯 Investor Matching | Smart matching based on sector, stage, geography, and thesis |
+| 📊 Founder Profile | Public, investor-ready profile with verified on-chain traction |
+
+---
 
 ## Monorepo Structure
 
 ```
 buildbridge/
 ├── apps/
-│   ├── web/          # Next.js frontend (founder dashboard + pitch builder)
-│   └── api/          # Node.js backend API
+│   ├── web/                   # Next.js 14 frontend
+│   └── api/                   # Node.js + Express backend
 ├── packages/
-│   ├── ui/           # Shared UI component library
-│   ├── stellar/      # Stellar & Soroban integration SDK
-│   └── ai/           # Agentic AI pitch builder logic
-├── contracts/        # Soroban smart contracts (Rust)
-└── docs/             # Documentation & architecture
+│   ├── ai/                    # Claude-powered PitchAgent
+│   ├── stellar/               # Freighter + Soroban integration
+│   ├── ui/                    # Shared React component library
+│   └── config-typescript/     # Shared TS configs
+├── contracts/
+│   └── milestone-tracker/     # Soroban smart contract (Rust)
+├── docs/                      # Architecture, contributing, sessions
+├── .github/
+│   ├── workflows/             # CI and deploy pipelines
+│   └── PULL_REQUEST_TEMPLATE.md
+├── turbo.json                 # Turborepo pipeline
+├── .env.example               # Environment variable template
+└── Cargo.toml                 # Rust workspace
 ```
+
+---
 
 ## Tech Stack
 
 | Layer | Technology |
-|-------|-----------|
+|---|---|
 | Frontend | Next.js 14, TailwindCSS, shadcn/ui |
 | Backend | Node.js, Express, Prisma |
 | AI | Claude API (Anthropic) — Agentic pitch builder |
-| Blockchain | Stellar Network + Soroban smart contracts |
+| Blockchain | Stellar Network + Soroban smart contracts (Rust) |
 | Database | PostgreSQL |
-| Auth | Stellar Wallet (Freighter) + JWT |
+| Auth | Freighter wallet + JWT |
+| Monorepo | Turborepo |
+| CI/CD | GitHub Actions → Vercel (web) + Railway (api) |
+
+---
 
 ## Getting Started
 
+### Prerequisites
+- Node.js ≥ 18
+- PostgreSQL 15+
+- Rust + Stellar CLI (for contract work)
+- [Freighter browser extension](https://freighter.app)
+
+### Setup
+
 ```bash
-# Clone the repo
-git clone https://github.com/your-username/buildbridge.git
+# Clone
+git clone https://github.com/buildbridge/buildbridge.git
 cd buildbridge
 
-# Install dependencies
+# Install all dependencies
 npm install
 
-# Set up environment variables
+# Set up environment
 cp .env.example .env
+# Fill in your values in .env
 
-# Run development servers
+# Run database migrations
+cd apps/api && npm run db:migrate && cd ../..
+
+# Start all apps in dev mode
 npm run dev
 ```
 
-## Key Features (MVP — 30 Days)
+This starts:
+- **Web** → http://localhost:3000
+- **API** → http://localhost:4000
+- **API health check** → http://localhost:4000/health
 
-1. **AI Pitch Builder** — Agentic flow that guides founders through structuring their pitch narrative, problem statement, traction metrics, and funding ask
-2. **On-Chain Milestone Tracker** — Soroban smart contract to record and verify key project milestones on Stellar
-3. **Founder Profile Dashboard** — Clean web interface to manage pitch, milestones, and investor-facing profile
+---
 
-## Stellar & Soroban
+## Build Sessions
 
-BuildBridge uses Stellar for:
-- **Milestone verification** — Immutable on-chain record of founder achievements
-- **Credibility layer** — Investors can verify traction without trusting a centralized database
-- **Future: Tokenized funding agreements** — Smart contract-based milestone-gated funding
+| # | Session | Status |
+|---|---|---|
+| 1 | Project setup & monorepo config | ✅ Complete |
+| 2 | Database & auth layer | 🔜 Next |
+| 3 | AI Pitch Builder (backend) | ⏳ Pending |
+| 4 | AI Pitch Builder (frontend) | ⏳ Pending |
+| 5 | Soroban MilestoneTracker contract | ⏳ Pending |
+| 6 | Founder dashboard & public profile | ⏳ Pending |
+| 7 | Investor matching & discovery | ⏳ Pending |
+| 8 | Testing, polish & mainnet launch | ⏳ Pending |
+
+---
 
 ## Contributing
 
-We welcome contributions! Please read our [Contributing Guide](docs/CONTRIBUTING.md) first.
+See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md).
 
 ## License
 

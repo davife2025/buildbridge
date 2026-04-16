@@ -1,41 +1,84 @@
+import type { ContractConfig, MilestoneRecord } from '../types';
+
 /**
- * Soroban Milestone Contract Client
- * Interacts with the on-chain milestone tracker deployed on Stellar
+ * BuildBridge MilestoneTracker Soroban Contract Client
+ *
+ * This is a typed client stub for the Soroban smart contract
+ * that will be deployed in Session 5.
+ *
+ * The contract stores founder milestones on-chain, making them
+ * immutably verifiable by investors without trusting a centralized DB.
  */
-
-export interface Milestone {
-  id: string;
-  founderPublicKey: string;
-  title: string;
-  description: string;
-  verifiedAt: number; // Unix timestamp
-  category: 'product' | 'traction' | 'funding' | 'team' | 'partnership';
-}
-
 export class MilestoneContract {
-  private contractId: string;
-  private network: 'testnet' | 'mainnet';
+  private config: ContractConfig;
 
-  constructor(contractId: string, network: 'testnet' | 'mainnet' = 'testnet') {
-    this.contractId = contractId;
-    this.network = network;
+  constructor(config: ContractConfig) {
+    this.config = config;
   }
 
   /**
-   * Record a new milestone on-chain
+   * Records a new milestone on-chain.
+   * Returns the Stellar transaction hash.
+   *
+   * Session 5: replace stub with real Soroban contract invocation.
    */
-  async recordMilestone(milestone: Omit<Milestone, 'id' | 'verifiedAt'>): Promise<string> {
-    // Build Soroban contract invocation transaction
-    // Returns transaction hash
-    console.log(`Recording milestone: ${milestone.title} for ${milestone.founderPublicKey}`);
-    return 'tx_hash_placeholder';
+  async recordMilestone(params: {
+    founderPublicKey: string;
+    title: string;
+    category: string;
+    signedXdr?: string;
+  }): Promise<{ txHash: string; onChainId: number }> {
+    // TODO Session 5: build + submit Soroban contract invocation tx
+    console.log('[MilestoneContract] recordMilestone — stub', {
+      contractId: this.config.contractId,
+      network: this.config.network,
+      ...params,
+    });
+    // Stub return — replaced in Session 5
+    return {
+      txHash: 'stub_tx_hash_' + Date.now(),
+      onChainId: Math.floor(Math.random() * 10000),
+    };
   }
 
   /**
-   * Fetch all milestones for a founder from the blockchain
+   * Fetches all milestones for a given founder from the contract.
+   *
+   * Session 5: replace stub with real Soroban ledger query.
    */
-  async getMilestones(founderPublicKey: string): Promise<Milestone[]> {
-    // Query Soroban contract state
+  async getMilestones(founderPublicKey: string): Promise<MilestoneRecord[]> {
+    // TODO Session 5: query Soroban contract state
+    console.log('[MilestoneContract] getMilestones — stub', {
+      founderPublicKey,
+      contractId: this.config.contractId,
+    });
     return [];
   }
+
+  /**
+   * Returns the contract explorer URL for a given transaction.
+   */
+  getExplorerUrl(txHash: string): string {
+    const base =
+      this.config.network === 'testnet'
+        ? 'https://stellar.expert/explorer/testnet/tx'
+        : 'https://stellar.expert/explorer/public/tx';
+    return `${base}/${txHash}`;
+  }
+}
+
+/**
+ * Factory: creates a MilestoneContract from env variables.
+ */
+export function createMilestoneContract(
+  network: 'testnet' | 'mainnet' = 'testnet',
+): MilestoneContract {
+  const contractId = process.env['MILESTONE_CONTRACT_ID'] ?? '';
+  const rpcUrl =
+    process.env['SOROBAN_RPC_URL'] ??
+    (network === 'testnet'
+      ? 'https://soroban-testnet.stellar.org'
+      : 'https://soroban.stellar.org');
+
+  return new MilestoneContract({ contractId, network, rpcUrl });
 }

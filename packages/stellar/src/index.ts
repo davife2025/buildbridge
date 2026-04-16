@@ -1,7 +1,23 @@
-// @buildbridge/stellar — Stellar & Soroban integration
+// Wallet
+export {
+  connectWallet,
+  disconnectWallet,
+  signTransaction,
+  isFreighterInstalled,
+  shortenPublicKey,
+} from './wallet';
 
-export * from './wallet';
-export * from './horizon';
+// Horizon
+export { getHorizonServer, getAccount, isAccountFunded, submitTransaction } from './horizon';
 
-// Contract clients
-export { MilestoneContract } from './contracts/milestone';
+// Contracts
+export { MilestoneContract, createMilestoneContract } from './contracts/milestone';
+
+// Types
+export type {
+  StellarNetwork,
+  WalletConnection,
+  SignedTransaction,
+  MilestoneRecord,
+  ContractConfig,
+} from './types';

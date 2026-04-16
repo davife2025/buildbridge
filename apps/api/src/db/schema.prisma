@@ -1,0 +1,167 @@
+// BuildBridge — Prisma Schema
+// Session 2: added AuthChallenge model
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum StellarNetwork {
+  testnet
+  mainnet
+}
+
+enum MilestoneCategory {
+  product
+  traction
+  funding
+  team
+  partnership
+  other
+}
+
+enum PitchStatus {
+  draft
+  in_progress
+  complete
+  archived
+}
+
+enum InvestorStage {
+  pre_seed
+  seed
+  series_a
+  series_b
+  growth
+  any
+}
+
+model AuthChallenge {
+  id        String   @id @default(cuid())
+  publicKey String
+  challenge String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+
+  @@index([publicKey])
+}
+
+model Founder {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  stellarPublicKey String         @unique
+  network          StellarNetwork @default(testnet)
+
+  name          String?
+  email         String? @unique
+  bio           String?
+  location      String?
+  avatarUrl     String?
+  twitterHandle String?
+  githubHandle  String?
+  linkedinUrl   String?
+  websiteUrl    String?
+
+  pitches     Pitch[]
+  milestones  Milestone[]
+  connections InvestorConnection[]
+
+  @@index([stellarPublicKey])
+}
+
+model Pitch {
+  id        String      @id @default(cuid())
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  founderId String
+  founder   Founder     @relation(fields: [founderId], references: [id], onDelete: Cascade)
+
+  status       PitchStatus @default(draft)
+  projectName  String
+  tagline      String?
+  overallScore Int?
+
+  problem  Json?
+  solution Json?
+  traction Json?
+  team     Json?
+  market   Json?
+  ask      Json?
+
+  versions PitchVersion[]
+
+  @@index([founderId])
+}
+
+model PitchVersion {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  pitchId   String
+  pitch     Pitch    @relation(fields: [pitchId], references: [id], onDelete: Cascade)
+  snapshot  Json
+  note      String?
+}
+
+model Milestone {
+  id        String            @id @default(cuid())
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  founderId String
+  founder   Founder           @relation(fields: [founderId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String?
+  category    MilestoneCategory
+
+  txHash     String?
+  contractId String?
+  onChainId  Int?
+  verifiedAt DateTime?
+
+  @@index([founderId])
+}
+
+model Investor {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name          String
+  firm          String?
+  email         String? @unique
+  bio           String?
+  avatarUrl     String?
+  websiteUrl    String?
+  twitterHandle String?
+
+  sectors   String[]
+  stages    InvestorStage[]
+  geography String[]
+  minCheck  Int?
+  maxCheck  Int?
+
+  connections InvestorConnection[]
+
+  @@index([sectors])
+}
+
+model InvestorConnection {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  founderId  String
+  founder    Founder  @relation(fields: [founderId], references: [id])
+  investorId String
+  investor   Investor @relation(fields: [investorId], references: [id])
+
+  status  String  @default("pending")
+  message String?
+
+  @@unique([founderId, investorId])
+}
