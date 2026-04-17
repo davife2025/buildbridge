@@ -10,12 +10,12 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "next": "14.2.3",
-    "react": "^18.3.0",
-    "react-dom": "^18.3.0",
-    "@buildbridge/ui": "*",
+    "@buildbridge/ai": "*",
     "@buildbridge/stellar": "*",
-    "@buildbridge/ai": "*"
+    "@buildbridge/ui": "*",
+    "next": "^16.2.4",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0"
   },
   "devDependencies": {
     "@buildbridge/config-typescript": "*",
