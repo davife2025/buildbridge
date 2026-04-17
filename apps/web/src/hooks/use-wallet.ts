@@ -4,96 +4,108 @@ import { useState, useCallback } from 'react';
 import { useAuth } from '@/context/auth-context';
 import { authApi } from '@/lib/api';
 
-type WalletStatus = 'idle' | 'connecting' | 'signing' | 'verifying' | 'error';
+type WalletStatus = 'idle' | 'detecting' | 'connecting' | 'signing' | 'verifying' | 'error';
+
+const STATUS_LABELS: Record<WalletStatus, string> = {
+  idle:      'Connect Wallet',
+  detecting: 'Detecting wallet…',
+  connecting: 'Connecting…',
+  signing:   'Sign in Freighter…',
+  verifying: 'Verifying…',
+  error:     'Try again',
+};
 
 interface UseWalletReturn {
   status: WalletStatus;
+  statusLabel: string;
   error: string | null;
+  isBusy: boolean;
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
 }
 
-/**
- * useWallet — manages the full Freighter wallet connect + JWT auth flow.
- *
- * Flow:
- *   1. Check Freighter is installed
- *   2. Request public key from Freighter
- *   3. Fetch a sign challenge from the API
- *   4. Ask Freighter to sign the challenge message
- *   5. Send signature to API → receive JWT
- *   6. Store JWT in AuthContext
- */
 export function useWallet(): UseWalletReturn {
   const { setSession, clearSession, token } = useAuth();
   const [status, setStatus] = useState<WalletStatus>('idle');
   const [error, setError] = useState<string | null>(null);
 
+  const isBusy = ['detecting', 'connecting', 'signing', 'verifying'].includes(status);
+
   const connect = useCallback(async () => {
-    setStatus('connecting');
     setError(null);
+    setStatus('detecting');
 
     try {
-      // 1. Check Freighter
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const freighter = (window as any).freighter;
-      if (!freighter) {
+      // 1. Import Freighter API (dynamic import — SSR safe)
+      const { isConnected, requestAccess, getNetworkDetails, signMessage } =
+        await import('@stellar/freighter-api');
+
+      // 2. Check Freighter is installed
+      const { isConnected: connected } = await isConnected();
+      if (!connected) {
         throw new Error(
-          'Freighter wallet not found. Install it at freighter.app',
+          'Freighter not detected. Please install the Freighter extension from freighter.app, then reload the page.',
         );
       }
 
-      // 2. Get public key
-      const publicKey = (await freighter.getPublicKey()) as string;
-      const networkDetails = (await freighter.getNetworkDetails()) as { network: string };
-      const network = networkDetails.network.toLowerCase().includes('test')
+      // 3. Request wallet access
+      setStatus('connecting');
+      const access = await requestAccess();
+      if (access.error) throw new Error(access.error);
+      const publicKey = access.address;
+      if (!publicKey) throw new Error('Freighter returned no public key.');
+
+      // 4. Determine network
+      const netDetails = await getNetworkDetails();
+      const network: 'testnet' | 'mainnet' = netDetails.networkPassphrase?.includes('Test')
         ? 'testnet'
         : 'mainnet';
 
-      // 3. Fetch challenge from API
+      // 5. Get auth challenge from API
       const { challenge, message } = await authApi.getChallenge(publicKey);
 
-      // 4. Sign with Freighter
+      // 6. Sign the challenge message with Freighter
       setStatus('signing');
-      const signedMessage = (await freighter.signMessage(message, {
-        address: publicKey,
-        networkPassphrase:
-          network === 'testnet'
-            ? 'Test SDF Network ; September 2015'
-            : 'Public Global Stellar Network ; September 2015',
-      })) as { signature: string };
+      const sigResult = await signMessage(message, {
+        accountToSign: publicKey,
+        networkPassphrase: netDetails.networkPassphrase,
+      });
+      if (sigResult.error) throw new Error(sigResult.error);
+      const signature = sigResult.signedMessage ?? '';
 
-      // 5. Verify with API → get JWT
+      // 7. Verify with API → receive JWT + founder
       setStatus('verifying');
       const { token, founder } = await authApi.connect({
         publicKey,
         challenge,
-        signature: signedMessage.signature,
+        signature,
         network,
       });
 
-      // 6. Persist session
       setSession(token, founder, publicKey);
       setStatus('idle');
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to connect wallet';
-      setError(message);
+      const msg = err instanceof Error ? err.message : 'Wallet connection failed';
+      setError(msg);
       setStatus('error');
     }
   }, [setSession]);
 
   const disconnect = useCallback(async () => {
     if (token) {
-      try {
-        await authApi.logout(token);
-      } catch {
-        // Ignore — clear locally regardless
-      }
+      try { await authApi.logout(token); } catch { /* ignore */ }
     }
     clearSession();
     setStatus('idle');
     setError(null);
   }, [token, clearSession]);
 
-  return { status, error, connect, disconnect };
+  return {
+    status,
+    statusLabel: STATUS_LABELS[status],
+    error,
+    isBusy,
+    connect,
+    disconnect,
+  };
 }

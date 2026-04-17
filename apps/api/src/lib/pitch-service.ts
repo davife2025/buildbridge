@@ -1,8 +1,12 @@
-import Anthropic from '@anthropic-ai/sdk';
+import { HfInference } from '@huggingface/inference';
 import { prisma } from '../db/client';
 import type { PitchStatus } from '@prisma/client';
 
-const client = new Anthropic({ apiKey: process.env['ANTHROPIC_API_KEY'] });
+const HF_MODEL = 'moonshotai/Kimi-K2-Instruct';
+
+function getClient() {
+  return new HfInference(process.env['HF_API_KEY']);
+}
 
 // ─── Types ────────────────────────────────────────────────
 
@@ -21,33 +25,22 @@ export const SECTION_KEYS: SectionKey[] = [
 
 // ─── Prompts ──────────────────────────────────────────────
 
-const SYSTEM_PROMPT = `You are BuildBridge's pitch coach — an expert in startup fundraising who helps founders from emerging markets communicate their vision to VCs and investors.
-
-You are direct, specific, and investor-minded. You know what early-stage investors look for:
-- Clear, evidence-backed problem with real market pain
-- Differentiated solution with a clear "why now" and "why this team"
-- Traction evidence — even small signals count
-- Credible, committed team with domain expertise
-- Realistic market sizing with a credible go-to-market wedge
-- Specific funding ask with clear use of funds and milestones
-
-Always respond ONLY with valid JSON — no markdown fences, no preamble.`;
+const SYSTEM_PROMPT = `You are BuildBridge's pitch coach — an expert in startup fundraising helping founders from emerging markets communicate their vision to investors. Be direct, specific, and investor-minded. Always respond ONLY with valid JSON — no markdown fences, no preamble.`;
 
 const SECTION_GUIDANCE: Record<SectionKey, string> = {
-  problem: `Refine the PROBLEM section. Great problem statements: (1) name a specific, painful problem with evidence, (2) quantify the cost or frequency, (3) show why existing solutions fail. Avoid generic statements like "X is hard". Be specific.`,
-  solution: `Refine the SOLUTION section. Great solutions: (1) directly address the stated problem, (2) explain the mechanism clearly, (3) articulate the key differentiator vs alternatives, (4) explain why NOW is the right time.`,
-  traction: `Refine the TRACTION section. Show momentum investors can believe in: MAU/DAU, revenue, paying customers, pilots, partnerships, waitlist size, on-chain activity, or notable technical milestones. Even early signals matter — be specific with numbers.`,
-  team: `Refine the TEAM section. Investors back people as much as ideas. Highlight: relevant domain expertise, prior startup experience, technical depth, and what makes this team uniquely suited to win this specific problem.`,
-  market: `Refine the MARKET section. Include TAM, SAM, SOM with realistic bottom-up estimates. Explain the go-to-market wedge — exactly how you win your first 100 customers. Name the beachhead segment.`,
-  ask: `Refine the ASK section. Be specific: exact amount, breakdown by category (engineering X%, marketing Y%, ops Z%), what milestones this unlocks, and what success looks like in 18 months. Investors want to see capital efficiency.`,
+  problem:  `Refine the PROBLEM section. Be specific, quantify the pain, and show why existing solutions fail.`,
+  solution: `Refine the SOLUTION section. Address the problem directly, explain the differentiator, and say why NOW.`,
+  traction: `Refine the TRACTION section. Show momentum with specific numbers — users, revenue, pilots, partnerships.`,
+  team:     `Refine the TEAM section. Highlight domain expertise and why this team uniquely wins this problem.`,
+  market:   `Refine the MARKET section. Include TAM/SAM/SOM with bottom-up estimates and a clear go-to-market wedge.`,
+  ask:      `Refine the ASK section. Be specific: amount, use-of-funds breakdown, milestones unlocked, 18-month success metrics.`,
 };
 
-// ─── Core Functions ───────────────────────────────────────
+// ─── Streaming refinement ─────────────────────────────────
 
 /**
- * Streams Claude's refinement of a pitch section.
- * Calls onChunk with each text delta for SSE streaming.
- * Returns the full accumulated JSON on completion.
+ * Streams Kimi K2's refinement of a pitch section via HuggingFace.
+ * Calls onChunk with each text delta for SSE streaming to the frontend.
  */
 export async function streamSectionRefinement(params: {
   section: SectionKey;
@@ -56,41 +49,36 @@ export async function streamSectionRefinement(params: {
   onChunk: (chunk: string) => void;
 }): Promise<PitchSectionData> {
   const { section, founderInput, existingPitch, onChunk } = params;
+  const client = getClient();
 
   const contextBlock = existingPitch
-    ? `\n\nContext from already-completed sections:\n${JSON.stringify(existingPitch, null, 2)}`
+    ? `\n\nContext from completed sections:\n${JSON.stringify(existingPitch, null, 2)}`
     : '';
 
   const userMessage = `${SECTION_GUIDANCE[section]}
 
-Founder's input:
-"${founderInput}"
-${contextBlock}
+Founder's input: "${founderInput}"${contextBlock}
 
-Respond ONLY with this JSON object (no markdown, no preamble):
-{
-  "title": "<short section title>",
-  "content": "<polished 2-4 sentence investor-ready text>",
-  "score": <integer 0-100>,
-  "suggestions": ["<tip 1>", "<tip 2>", "<tip 3>"]
-}`;
+Respond ONLY with this JSON (no markdown):
+{"title":"<title>","content":"<2-4 sentence investor-ready text>","score":<0-100>,"suggestions":["<tip1>","<tip2>","<tip3>"]}`;
 
   let accumulated = '';
 
-  const stream = await client.messages.stream({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 1000,
-    system: SYSTEM_PROMPT,
-    messages: [{ role: 'user', content: userMessage }],
+  const stream = await client.chatCompletionStream({
+    model: HF_MODEL,
+    messages: [
+      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'user', content: userMessage },
+    ],
+    max_tokens: 1024,
+    temperature: 0.3,
   });
 
-  for await (const event of stream) {
-    if (
-      event.type === 'content_block_delta' &&
-      event.delta.type === 'text_delta'
-    ) {
-      accumulated += event.delta.text;
-      onChunk(event.delta.text);
+  for await (const chunk of stream) {
+    const delta = chunk.choices[0]?.delta?.content ?? '';
+    if (delta) {
+      accumulated += delta;
+      onChunk(delta);
     }
   }
 
@@ -98,40 +86,36 @@ Respond ONLY with this JSON object (no markdown, no preamble):
   return JSON.parse(cleaned) as PitchSectionData;
 }
 
-/**
- * Scores a complete pitch using Claude.
- * Returns overall score, feedback, strengths, and top improvements.
- */
+// ─── Full pitch scoring ───────────────────────────────────
+
 export async function scorePitch(pitch: Record<string, unknown>): Promise<{
   overallScore: number;
   feedback: string;
   strengths: string[];
   improvements: string[];
 }> {
-  const message = await client.messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 800,
-    system: SYSTEM_PROMPT,
+  const client = getClient();
+
+  const response = await client.chatCompletion({
+    model: HF_MODEL,
     messages: [
+      { role: 'system', content: SYSTEM_PROMPT },
       {
         role: 'user',
-        content: `Score this startup pitch from an early-stage investor's perspective.
+        content: `Score this pitch from an investor's perspective.
 
-Pitch data:
+Pitch:
 ${JSON.stringify(pitch, null, 2)}
 
-Respond ONLY with this JSON (no markdown):
-{
-  "overallScore": <integer 0-100>,
-  "feedback": "<2-3 sentence overall assessment>",
-  "strengths": ["<strength 1>", "<strength 2>"],
-  "improvements": ["<most important fix>", "<second most important fix>"]
-}`,
+Respond ONLY with JSON:
+{"overallScore":<0-100>,"feedback":"<2-3 sentences>","strengths":["<s1>","<s2>"],"improvements":["<i1>","<i2>"]}`,
       },
     ],
+    max_tokens: 800,
+    temperature: 0.2,
   });
 
-  const raw = message.content[0]?.type === 'text' ? message.content[0].text : '{}';
+  const raw = response.choices[0]?.message?.content ?? '{}';
   const cleaned = raw.replace(/```json|```/g, '').trim();
   return JSON.parse(cleaned) as {
     overallScore: number;
@@ -141,12 +125,10 @@ Respond ONLY with this JSON (no markdown):
   };
 }
 
-// ─── DB Helpers ───────────────────────────────────────────
+// ─── DB helpers (unchanged) ───────────────────────────────
 
 export async function createPitch(founderId: string, projectName: string, tagline?: string) {
-  return prisma.pitch.create({
-    data: { founderId, projectName, tagline, status: 'draft' },
-  });
+  return prisma.pitch.create({ data: { founderId, projectName, tagline, status: 'draft' } });
 }
 
 export async function getPitch(pitchId: string, founderId: string) {
@@ -161,22 +143,15 @@ export async function listPitches(founderId: string) {
     where: { founderId },
     orderBy: { updatedAt: 'desc' },
     select: {
-      id: true,
-      projectName: true,
-      tagline: true,
-      status: true,
-      overallScore: true,
-      createdAt: true,
-      updatedAt: true,
+      id: true, projectName: true, tagline: true,
+      status: true, overallScore: true, createdAt: true, updatedAt: true,
     },
   });
 }
 
 export async function updatePitchSection(
-  pitchId: string,
-  founderId: string,
-  section: SectionKey,
-  data: PitchSectionData,
+  pitchId: string, founderId: string,
+  section: SectionKey, data: PitchSectionData,
 ) {
   return prisma.pitch.update({
     where: { id: pitchId, founderId },
@@ -187,10 +162,7 @@ export async function updatePitchSection(
 export async function savePitchVersion(pitchId: string, note?: string) {
   const pitch = await prisma.pitch.findUnique({ where: { id: pitchId } });
   if (!pitch) throw new Error('Pitch not found');
-
-  return prisma.pitchVersion.create({
-    data: { pitchId, snapshot: pitch as object, note },
-  });
+  return prisma.pitchVersion.create({ data: { pitchId, snapshot: pitch as object, note } });
 }
 
 export async function updatePitchScore(pitchId: string, overallScore: number) {
@@ -200,15 +172,8 @@ export async function updatePitchScore(pitchId: string, overallScore: number) {
   });
 }
 
-export async function updatePitchStatus(
-  pitchId: string,
-  founderId: string,
-  status: PitchStatus,
-) {
-  return prisma.pitch.update({
-    where: { id: pitchId, founderId },
-    data: { status },
-  });
+export async function updatePitchStatus(pitchId: string, founderId: string, status: PitchStatus) {
+  return prisma.pitch.update({ where: { id: pitchId, founderId }, data: { status } });
 }
 
 export async function deletePitch(pitchId: string, founderId: string) {

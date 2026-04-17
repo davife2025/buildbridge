@@ -3,43 +3,27 @@
 import { useAuth } from '@/context/auth-context';
 import { useWallet } from '@/hooks/use-wallet';
 
-const STATUS_LABELS = {
-  idle: 'Connect Wallet',
-  connecting: 'Connecting…',
-  signing: 'Sign in Freighter…',
-  verifying: 'Verifying…',
-  error: 'Try again',
-};
-
 export function ConnectWalletButton() {
   const { isAuthenticated, founder, isLoading } = useAuth();
-  const { status, error, connect, disconnect } = useWallet();
-
-  const isBusy = ['connecting', 'signing', 'verifying'].includes(status);
+  const { statusLabel, error, isBusy, connect, disconnect } = useWallet();
 
   if (isLoading) {
-    return (
-      <div className="h-10 w-36 animate-pulse rounded-lg bg-white/10" aria-label="Loading…" />
-    );
+    return <div className="h-9 w-36 animate-pulse rounded-lg bg-white/10" />;
   }
 
   if (isAuthenticated && founder) {
+    const display = founder.name
+      ?? `${founder.publicKey.slice(0, 4)}…${founder.publicKey.slice(-4)}`;
+
     return (
-      <div className="flex items-center gap-3">
-        {/* Avatar / initials */}
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-400/20 text-xs font-semibold text-brand-400">
-          {founder.name
-            ? founder.name.slice(0, 2).toUpperCase()
-            : founder.publicKey.slice(0, 2).toUpperCase()}
+      <div className="flex items-center gap-2">
+        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-400/20 text-xs font-semibold text-brand-400">
+          {display.slice(0, 2).toUpperCase()}
         </div>
-
-        <span className="hidden text-sm text-white/70 sm:block">
-          {founder.name ?? `${founder.publicKey.slice(0, 6)}…${founder.publicKey.slice(-4)}`}
-        </span>
-
+        <span className="hidden text-sm text-white/60 sm:block">{display}</span>
         <button
           onClick={disconnect}
-          className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/50 transition hover:border-white/20 hover:text-white/80"
+          className="rounded-lg border border-white/10 px-2.5 py-1 text-xs text-white/40 transition hover:border-white/20 hover:text-white/70"
         >
           Disconnect
         </button>
@@ -60,12 +44,9 @@ export function ConnectWalletButton() {
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
           </svg>
         )}
-        {STATUS_LABELS[status]}
+        {statusLabel}
       </button>
-
-      {error && (
-        <p className="text-xs text-red-400">{error}</p>
-      )}
+      {error && <p className="max-w-[220px] text-right text-xs text-red-400">{error}</p>}
     </div>
   );
 }

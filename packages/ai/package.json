@@ -9,7 +9,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.24.0"
+    "@huggingface/inference": "^2.8.0"
   },
   "devDependencies": {
     "@buildbridge/config-typescript": "*",

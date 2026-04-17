@@ -1,45 +1,57 @@
-import Anthropic from '@anthropic-ai/sdk';
+import { HfInference } from '@huggingface/inference';
 import type { PitchData, PitchSection, PitchSectionKey, PitchScoreResult } from './types';
 
-const SYSTEM_PROMPT = `You are BuildBridge's pitch coach — an expert in startup fundraising who helps founders from emerging markets communicate their vision clearly to VCs and investors.
+// Kimi K2 model ID on HuggingFace
+const MODEL_ID = 'moonshotai/Kimi-K2-Instruct';
+
+const SYSTEM_PROMPT = `You are BuildBridge's pitch coach — an expert in startup fundraising who helps founders from emerging markets communicate their vision to VCs and investors.
 
 You are direct, specific, and investor-minded. You know what early-stage investors look for:
-- A crisp problem statement with real market evidence
-- A clearly differentiated solution
-- Evidence of traction (even early signals count)
-- A credible, committed team
-- A realistic market size
-- A clear and reasonable funding ask
+- Clear, evidence-backed problem with real market pain
+- Differentiated solution with a clear "why now" and "why this team"
+- Traction evidence — even small signals count
+- Credible, committed team with domain expertise
+- Realistic market sizing with a credible go-to-market wedge
+- Specific funding ask with clear use of funds and milestones
 
-When refining a pitch section, always respond with a JSON object — no markdown, no preamble. The object must match:
-{
-  "title": string,         // short section title
-  "content": string,       // polished investor-ready text (2–4 sentences)
-  "score": number,         // 0–100 quality score
-  "suggestions": string[]  // 2–3 specific improvement tips
-}`;
+Always respond ONLY with valid JSON — no markdown fences, no preamble, no explanation.`;
 
-const SECTION_PROMPTS: Record<PitchSectionKey, string> = {
-  problem: `Help refine the PROBLEM section. A great problem section: (1) is specific and evidence-backed, (2) shows market pain not just a feature gap, (3) quantifies the cost or impact of the problem.`,
-  solution: `Help refine the SOLUTION section. A great solution: (1) directly addresses the stated problem, (2) is clearly differentiated from alternatives, (3) explains WHY now and WHY this team.`,
-  traction: `Help refine the TRACTION section. Show momentum: users, revenue, partnerships, pilots, waitlist, or technical milestones. Investors want proof of early demand — even small signals matter.`,
-  team: `Help refine the TEAM section. Investors back people as much as ideas. Highlight relevant experience, domain expertise, and what makes this team uniquely suited to solve this problem.`,
-  market: `Help refine the MARKET section. Include TAM, SAM, SOM with realistic bottom-up estimates. Explain the go-to-market wedge — how you win your first 100 customers.`,
-  ask: `Help refine the ASK section. Be specific: how much, what's the use of funds (breakdown by category), what milestones will it unlock, and what does success look like in 18 months.`,
+const SECTION_GUIDANCE: Record<PitchSectionKey, string> = {
+  problem: `Refine the PROBLEM section. Great problem statements: (1) name a specific painful problem with evidence, (2) quantify the cost or frequency, (3) show why existing solutions fail.`,
+  solution: `Refine the SOLUTION section. Great solutions: (1) directly address the stated problem, (2) explain the mechanism, (3) articulate the key differentiator, (4) explain why NOW is the right time.`,
+  traction: `Refine the TRACTION section. Show momentum: MAU/DAU, revenue, paying customers, pilots, waitlist, partnerships, or on-chain activity. Be specific with numbers.`,
+  team: `Refine the TEAM section. Highlight domain expertise, prior startup experience, technical depth, and why this team is uniquely suited to win this specific problem.`,
+  market: `Refine the MARKET section. Include TAM, SAM, SOM with bottom-up estimates. Name the beachhead segment and explain the go-to-market wedge for the first 100 customers.`,
+  ask: `Refine the ASK section. Be specific: exact amount, breakdown by category (engineering X%, marketing Y%, ops Z%), what milestones this unlocks, and success metrics in 18 months.`,
 };
 
 export class PitchAgent {
-  private client: Anthropic;
+  private client: HfInference;
 
   constructor(apiKey?: string) {
-    this.client = new Anthropic({
-      apiKey: apiKey ?? process.env['ANTHROPIC_API_KEY'],
-    });
+    this.client = new HfInference(apiKey ?? process.env['HF_API_KEY']);
   }
 
   /**
-   * Refine a single pitch section with AI coaching.
-   * Session 3 will add streaming support.
+   * Calls Kimi K2 via HuggingFace Inference API.
+   * Returns the response text.
+   */
+  private async chat(systemPrompt: string, userMessage: string): Promise<string> {
+    const response = await this.client.chatCompletion({
+      model: MODEL_ID,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userMessage },
+      ],
+      max_tokens: 1024,
+      temperature: 0.3,
+    });
+
+    return response.choices[0]?.message?.content ?? '{}';
+  }
+
+  /**
+   * Refine a single pitch section with Kimi K2 coaching.
    */
   async refineSection(
     section: PitchSectionKey,
@@ -47,60 +59,46 @@ export class PitchAgent {
     existingPitch?: Partial<PitchData>,
   ): Promise<PitchSection> {
     const contextBlock = existingPitch
-      ? `\n\nContext from other completed sections:\n${JSON.stringify(existingPitch, null, 2)}`
+      ? `\n\nContext from already-completed sections:\n${JSON.stringify(existingPitch, null, 2)}`
       : '';
 
-    const message = await this.client.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1000,
-      system: SYSTEM_PROMPT,
-      messages: [
-        {
-          role: 'user',
-          content: `${SECTION_PROMPTS[section]}
+    const userMessage = `${SECTION_GUIDANCE[section]}
 
 Founder's input:
 "${founderInput}"
 ${contextBlock}
 
-Respond ONLY with a valid JSON object. No markdown, no extra text.`,
-        },
-      ],
-    });
+Respond ONLY with this JSON object (no markdown, no preamble):
+{
+  "title": "<short section title>",
+  "content": "<polished 2-4 sentence investor-ready text>",
+  "score": <integer 0-100>,
+  "suggestions": ["<tip 1>", "<tip 2>", "<tip 3>"]
+}`;
 
-    const raw = message.content[0]?.type === 'text' ? message.content[0].text : '{}';
+    const raw = await this.chat(SYSTEM_PROMPT, userMessage);
     const cleaned = raw.replace(/```json|```/g, '').trim();
     return JSON.parse(cleaned) as PitchSection;
   }
 
   /**
-   * Score an entire pitch and provide overall feedback.
+   * Score an entire pitch deck using Kimi K2.
    */
   async scorePitch(pitch: Partial<PitchData>): Promise<PitchScoreResult> {
-    const message = await this.client.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1000,
-      system: SYSTEM_PROMPT,
-      messages: [
-        {
-          role: 'user',
-          content: `Score this startup pitch from an early-stage investor's perspective.
+    const userMessage = `Score this startup pitch from an early-stage investor's perspective.
 
 Pitch:
 ${JSON.stringify(pitch, null, 2)}
 
-Respond ONLY with a valid JSON object:
+Respond ONLY with this JSON (no markdown):
 {
-  "overallScore": number,    // 0–100
-  "feedback": string,        // 2–3 sentence overall assessment
-  "strengths": string[],     // top 2–3 things working well
-  "improvements": string[]   // top 2–3 most important things to fix
-}`,
-        },
-      ],
-    });
+  "overallScore": <integer 0-100>,
+  "feedback": "<2-3 sentence overall assessment>",
+  "strengths": ["<strength 1>", "<strength 2>"],
+  "improvements": ["<most important fix>", "<second most important fix>"]
+}`;
 
-    const raw = message.content[0]?.type === 'text' ? message.content[0].text : '{}';
+    const raw = await this.chat(SYSTEM_PROMPT, userMessage);
     const cleaned = raw.replace(/```json|```/g, '').trim();
     return JSON.parse(cleaned) as PitchScoreResult;
   }

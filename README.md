@@ -4,83 +4,62 @@
 
 An Agentic AI platform on Stellar that helps founders craft investor-ready pitches, verify traction on-chain via Soroban, and connect with the right investors.
 
-[![CI](https://github.com/buildbridge/buildbridge/actions/workflows/ci.yml/badge.svg)](https://github.com/buildbridge/buildbridge/actions)
+## AI Model
 
----
+BuildBridge uses **Kimi K2** (`moonshotai/Kimi-K2-Instruct`) via HuggingFace Inference for all AI pitch coaching. Kimi K2 is a state-of-the-art reasoning model from Moonshot AI with strong performance on structured output tasks.
 
-## The Problem
+## Tech Stack
 
-Most founders, especially in Africa and emerging markets, fail to raise not because their ideas lack merit — but because they can't communicate their value effectively. BuildBridge closes the pitch gap.
-
-## What We Built
-
-| Feature | Description |
+| Layer | Technology |
 |---|---|
-| 🤖 AI Pitch Builder | Claude streams section-by-section pitch coaching in real time |
-| ⛓️ On-Chain Milestones | Soroban smart contract records achievements immutably on Stellar |
-| 🎯 Investor Matching | Algorithm scores investors on sector, stage, geography, check size |
-| 📊 Founder Profile | Public investor-ready profile with verified on-chain traction |
-
----
+| Frontend | Next.js 14 + TailwindCSS → **Vercel** |
+| Backend | Node.js + Express + Prisma → **Render** |
+| Database | **Supabase** (PostgreSQL + RLS + Storage) |
+| AI | **Kimi K2** via HuggingFace Inference |
+| Blockchain | Stellar Network + Soroban (Rust) |
+| Auth | Freighter wallet (@stellar/freighter-api) + JWT |
+| Monorepo | Turborepo |
+| Testing | Jest + Playwright |
 
 ## Quick Start
 
 ```bash
 git clone https://github.com/your-username/buildbridge.git
 cd buildbridge
-cp .env.example .env        # fill in your values
+cp .env.example .env   # fill in all values
 
 npm install
-npm run dev                 # starts web on :3000, api on :4000
+npm run dev            # web on :3000, api on :4000
 ```
 
-See [docs/SUPABASE.md](docs/SUPABASE.md) for database setup.
+## Environment Variables
 
-## Tech Stack
+```env
+HF_API_KEY=hf_...                    # HuggingFace — Kimi K2
+SUPABASE_URL=https://xxx.supabase.co  # Supabase
+DATABASE_URL=postgresql://...?pgbouncer=true
+DIRECT_URL=postgresql://...
+JWT_SECRET=your-secret
+MILESTONE_CONTRACT_ID=C...            # Soroban contract
+```
 
-| Layer | Technology |
-|---|---|
-| Frontend | Next.js 14 + TailwindCSS |
-| Backend | Node.js + Express + Prisma |
-| Database | **Supabase** (PostgreSQL + RLS + Storage) |
-| AI | Claude API — `claude-sonnet-4-20250514` |
-| Blockchain | Stellar + Soroban smart contracts (Rust) |
-| Auth | Freighter wallet + JWT |
-| Monorepo | Turborepo |
-| Testing | Jest + Playwright E2E |
-
-## Build Sessions
-
-| # | Session | Status |
-|---|---|---|
-| 1 | Project setup & monorepo config | ✅ |
-| 2 | Database & auth layer | ✅ |
-| 3 | AI Pitch Builder (backend) | ✅ |
-| 4 | AI Pitch Builder (frontend) | ✅ |
-| 5 | Soroban MilestoneTracker contract | ✅ |
-| 6 | Founder dashboard & public profile | ✅ |
-| 7 | Investor matching & discovery | ✅ |
-| 8 | Testing, polish & Supabase migration | ✅ |
+See `.env.example` for all variables.
 
 ## Deployment
 
-```bash
-# Deploy contract to Stellar mainnet
-./contracts/deploy.sh mainnet
+See **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** for the full step-by-step guide covering:
+- Supabase setup + migration + storage bucket
+- Stellar contract build, deploy, and initialise
+- Render (API) configuration
+- Vercel (web) deployment
+- Custom domain setup
+- Troubleshooting
 
-# Deploy web (Vercel)
-vercel --prod
+## Known Issues Fixed
 
-# Deploy API (Railway)
-railway up
-
-# Run E2E tests
-npm run test:e2e
-```
-
-## SCF Submission
-
-See [docs/SCF_SUBMISSION.md](docs/SCF_SUBMISSION.md) for the complete checklist and application copy.
+- ✅ "Launch app" no longer redirects — shows inline wallet connect prompt
+- ✅ Freighter detection uses `@stellar/freighter-api` (not deprecated `window.freighter`)
+- ✅ AI switched from Claude to Kimi K2 via HuggingFace
 
 ## License
 

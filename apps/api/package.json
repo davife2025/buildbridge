@@ -18,9 +18,9 @@
     "db:reset": "prisma migrate reset"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.24.0",
     "@buildbridge/ai": "*",
     "@buildbridge/stellar": "*",
+    "@huggingface/inference": "^2.8.0",
     "@prisma/client": "^5.14.0",
     "@stellar/stellar-sdk": "^12.2.0",
     "@supabase/supabase-js": "^2.43.0",
