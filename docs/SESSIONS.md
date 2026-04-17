@@ -10,8 +10,8 @@
 | 4 | AI Pitch Builder — frontend | 9–11 | ✅ Complete |
 | 5 | Soroban MilestoneTracker contract | 12–15 | ✅ Complete |
 | 6 | Founder dashboard & public profile | 16–19 | ✅ Complete |
-| 7 | Investor matching & discovery | 20–24 | 🔜 Next |
-| 8 | Testing, polish & mainnet launch | 25–30 | ⏳ Pending |
+| 7 | Investor matching & discovery | 20–24 | ✅ Complete |
+| 8 | Testing, polish & mainnet launch | 25–30 | 🔜 Next |
 
 ---
 
@@ -421,4 +421,46 @@ apps/api/src/routes/profile.ts
 apps/web/src/components/profile/*.tsx  (5 components)
 apps/web/src/app/profile/[id]/profile-content.tsx
 apps/web/src/app/settings/profile/profile-settings.tsx
+```
+
+---
+
+## Session 7 — Investor Matching & Discovery ✅
+**Days 20–24**
+
+### What was built
+
+**API**
+- `db/seed.ts` — 20 real-world inspired investor profiles seeded
+- `lib/investor-service.ts` — matching algorithm + CRUD:
+  - `matchInvestors()` — scores investors on sector (40 pts), stage (30 pts), geography (15 pts), check size (15 pts)
+  - `listAllInvestors()` — paginated list with sector/stage/geography filters
+  - `requestConnection()` — upsert connection request
+  - `getConnections()` — founder's connection history
+- `routes/investor.ts` — 5 endpoints:
+  - `GET /api/investors` — public investor directory with filters
+  - `GET /api/investors/match` — personalised matches for logged-in founder
+  - `GET /api/investors/connections` — founder's sent requests
+  - `GET /api/investors/:id` — single investor profile
+  - `POST /api/investors/:id/connect` — request connection
+- `__tests__/investor.test.ts` — 7 route + algorithm tests
+
+**Web**
+- `lib/investor-api.ts` — typed API client
+- `hooks/use-investors.ts` — matches + directory + connect state
+- `components/investors/investor-card.tsx` — card with match % score, reasons, inline connect form
+- `components/investors/investor-filters.tsx` — sector/stage/geography filter dropdowns
+- `app/investors/investors-content.tsx` — 3-tab page:
+  - **Matched for you** — personalised ranked matches with score
+  - **All investors** — searchable directory with filters
+  - **My connections** — sent requests with status
+
+### Matching algorithm
+```
+Score = sector_fit (0–40) + stage_fit (0–30) + geo_fit (0–15) + check_size_fit (0–15)
+
+sector_fit: keyword extraction from pitch text vs investor thesis
+stage_fit:  infer founder stage from pitch completion + score
+geo_fit:    founder.location vs investor.geography array
+check_size: estimated raise vs investor min/max check range
 ```

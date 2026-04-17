@@ -10,6 +10,7 @@ import { authRouter } from './routes/auth';
 import { pitchRouter } from './routes/pitch';
 import { milestoneRouter } from './routes/milestone';
 import { profileRouter } from './routes/profile';
+import { investorRouter } from './routes/investor';
 import { errorHandler } from './middleware/error-handler';
 import { notFound } from './middleware/not-found';
 
@@ -24,12 +25,11 @@ app.use(express.urlencoded({ extended: true }));
 app.use(morgan(process.env['NODE_ENV'] === 'production' ? 'combined' : 'dev'));
 
 app.use('/health', healthRouter);
-app.use('/api/auth', authRouter);             // ✅ Session 2
-app.use('/api/pitch', pitchRouter);           // ✅ Session 3
-app.use('/api/milestones', milestoneRouter);  // ✅ Session 5
-app.use('/api/profiles', profileRouter);      // ✅ Session 6
-
-// Session 7: app.use('/api/investors', investorRouter);
+app.use('/api/auth', authRouter);              // ✅ Session 2
+app.use('/api/pitch', pitchRouter);            // ✅ Session 3
+app.use('/api/milestones', milestoneRouter);   // ✅ Session 5
+app.use('/api/profiles', profileRouter);       // ✅ Session 6
+app.use('/api/investors', investorRouter);     // ✅ Session 7
 
 app.use(notFound);
 app.use(errorHandler);
@@ -38,7 +38,6 @@ if (process.env['NODE_ENV'] !== 'test') {
   app.listen(PORT, () => {
     console.log(`🌉 BuildBridge API → http://localhost:${PORT}`);
     console.log(`   Network: ${process.env['STELLAR_NETWORK'] ?? 'testnet'}`);
-    console.log(`   Contract: ${process.env['MILESTONE_CONTRACT_ID'] ?? '(not set)'}`);
   });
 }
 
