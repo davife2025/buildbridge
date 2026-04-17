@@ -1,96 +1,81 @@
 # BuildBridge — Architecture
 
+## Stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | Next.js 14, TailwindCSS |
+| Backend | Node.js, Express, Prisma |
+| Database | **Supabase** (PostgreSQL + PgBouncer + RLS + Storage) |
+| AI | Claude API — `claude-sonnet-4-20250514` |
+| Blockchain | Stellar Network + Soroban smart contracts (Rust) |
+| Auth | Freighter wallet + JWT |
+| Monorepo | Turborepo |
+| CI/CD | GitHub Actions → Vercel (web) + Railway (api) |
+| Monitoring | Sentry |
+
 ## System Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        BUILDBRIDGE PLATFORM                      │
-│                                                                  │
-│  ┌──────────────────┐    ┌──────────────────┐    ┌───────────┐  │
-│  │   Next.js 14     │    │  Express API     │    │  Claude   │  │
-│  │   (Vercel)       │◄──►│  (Railway)       │◄──►│  Sonnet   │  │
-│  │                  │    │                  │    │  (AI)     │  │
-│  │  /               │    │  /health         │    └───────────┘  │
-│  │  /dashboard      │    │  /api/auth       │                   │
-│  │  /pitch-builder  │    │  /api/pitch      │    ┌───────────┐  │
-│  │  /milestones     │    │  /api/milestones │    │ PostgreSQL│  │
-│  │  /profile/:id    │    │  /api/investors  │◄──►│(Railway)  │  │
-│  │  /investors      │    │                  │    └───────────┘  │
-│  └────────┬─────────┘    └────────┬─────────┘                   │
-│           │                       │                              │
-│  ┌────────▼─────────┐    ┌────────▼──────────────────────────┐  │
-│  │ Freighter Wallet │    │        Stellar Network             │  │
-│  │ (browser ext)    │    │  Horizon API + Soroban RPC         │  │
-│  └──────────────────┘    │  MilestoneTracker Contract         │  │
-│                           └────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────┐
+│                    BUILDBRIDGE PLATFORM                     │
+│                                                             │
+│  ┌─────────────┐   ┌─────────────┐   ┌───────────────┐    │
+│  │  Next.js 14 │   │ Express API │   │  Claude AI    │    │
+│  │  (Vercel)   │◄─►│  (Railway)  │◄─►│  Sonnet       │    │
+│  └──────┬──────┘   └──────┬──────┘   └───────────────┘    │
+│         │                 │                                 │
+│  ┌──────▼──────┐   ┌──────▼────────────────────────────┐   │
+│  │  Freighter  │   │           Supabase                 │   │
+│  │  Wallet     │   │  PostgreSQL + PgBouncer + RLS       │   │
+│  └─────────────┘   │  Storage (avatars)                  │   │
+│                    └───────────────────────────────────┘   │
+│                                                             │
+│              ┌──────────────────────────────────┐          │
+│              │      Stellar Network              │          │
+│              │  Horizon API + Soroban RPC        │          │
+│              │  MilestoneTracker Contract        │          │
+│              └──────────────────────────────────┘          │
+└────────────────────────────────────────────────────────────┘
 ```
 
-## Package Dependency Graph
+## Database: Supabase
+
+BuildBridge uses Supabase (hosted PostgreSQL) with:
+
+- **PgBouncer** (port 6543) for runtime connection pooling
+- **Direct connection** (port 5432) for Prisma migrations
+- **Row Level Security** on all tables as defence-in-depth
+- **Supabase Storage** for founder avatar uploads
+
+See [docs/SUPABASE.md](SUPABASE.md) for full setup guide.
+
+## Auth Flow
 
 ```
-apps/web ──────────────────► @buildbridge/ui
-    │                         @buildbridge/stellar
-    │                         @buildbridge/ai
-    │
-apps/api ──────────────────► @buildbridge/ai
-    │                         @buildbridge/stellar
-    │                         @prisma/client
-    │
-packages/ai ───────────────► @anthropic-ai/sdk
-packages/stellar ──────────► @stellar/stellar-sdk
-packages/ui ───────────────► react, tailwindcss
+1. Browser → GET /api/auth/challenge?publicKey=G...
+2. API → stores challenge in AuthChallenge table → returns challenge string
+3. Browser → Freighter.signMessage(challenge)
+4. Browser → POST /api/auth/connect { publicKey, challenge, signature }
+5. API → verifies Stellar signature → upserts Founder in Supabase → issues JWT
+6. JWT stored client-side → attached to all subsequent API requests
 ```
 
-## Request Lifecycle
+## On-chain Milestone Flow
 
-### Auth flow (Session 2)
-1. User clicks "Connect Wallet" in web app
-2. Freighter popup asks user to approve
-3. Frontend gets `publicKey` from Freighter
-4. Frontend sends `{ publicKey, signedChallenge }` to `POST /api/auth/connect`
-5. API verifies the Stellar signature
-6. API creates/upserts `Founder` record in PostgreSQL
-7. API returns signed JWT
-8. Frontend stores JWT in httpOnly cookie
-
-### Pitch flow (Session 3–4)
-1. Founder fills in one pitch section
-2. Frontend sends text to `POST /api/pitch/refine` with section name
-3. API streams Claude response back via SSE
-4. Frontend renders AI suggestions in real time
-5. Founder accepts → saved to `Pitch` table in PostgreSQL
-
-### Milestone flow (Session 5)
-1. Founder clicks "Record Milestone"
-2. API builds a Soroban contract invocation transaction
-3. API returns unsigned XDR to frontend
-4. Frontend asks Freighter to sign the XDR
-5. Frontend sends signed XDR to `POST /api/milestones/submit`
-6. API submits to Stellar network via Horizon
-7. API stores `txHash` and `onChainId` in PostgreSQL
-
-## Database Schema (Prisma)
-
-See `apps/api/src/db/schema.prisma` for the full schema.
-
-Key tables:
-- `Founder` — wallet-authenticated users
-- `Pitch` — AI-built pitch decks (with versioning)
-- `PitchVersion` — point-in-time snapshots
-- `Milestone` — founder achievements (on-chain verified)
-- `Investor` — investor profiles for matching
-- `InvestorConnection` — connection requests
-
-## Environment Variables
-
-See `.env.example` at the root. Each app also accepts its own `.env.local`.
+```
+1. POST /api/milestones          → create DB record in Supabase
+2. POST /api/milestones/build-tx → build unsigned Soroban XDR
+3. Freighter.signTransaction()   → user signs in browser
+4. POST /api/milestones/submit   → submit to Stellar → poll for confirmation
+5. Supabase updated: txHash + onChainId
+```
 
 ## Deployment
 
-| Service | Provider | Triggered by |
+| Service | Provider | Trigger |
 |---|---|---|
 | Web (Next.js) | Vercel | Push to `main` |
 | API (Express) | Railway | Push to `main` |
-| Database | Railway (PostgreSQL) | Manual provision |
-| Smart Contract | Stellar testnet/mainnet | Manual CLI deploy |
+| Database | Supabase | Always on |
+| Smart Contract | Stellar mainnet | Manual deploy |

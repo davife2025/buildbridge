@@ -11,7 +11,7 @@
 | 5 | Soroban MilestoneTracker contract | 12–15 | ✅ Complete |
 | 6 | Founder dashboard & public profile | 16–19 | ✅ Complete |
 | 7 | Investor matching & discovery | 20–24 | ✅ Complete |
-| 8 | Testing, polish & mainnet launch | 25–30 | 🔜 Next |
+| 8 | Testing, polish & mainnet launch | 25–30 | ✅ Complete |
 
 ---
 
@@ -464,3 +464,44 @@ stage_fit:  infer founder stage from pitch completion + score
 geo_fit:    founder.location vs investor.geography array
 check_size: estimated raise vs investor min/max check range
 ```
+
+---
+
+## Session 8 — Testing, Polish & Mainnet Launch ✅
+**Days 25–30**
+
+### What was built
+
+**Database migration → Supabase**
+- `apps/api/src/db/supabase.ts` — Supabase admin client (service role key)
+- `apps/web/src/lib/supabase.ts` — Supabase browser client (anon key)
+- `apps/api/src/db/migrations/002_supabase.sql` — Full SQL with enums, tables, RLS policies, triggers
+- `apps/api/src/db/schema.prisma` — updated with `directUrl` for Supabase pooler
+- `docs/SUPABASE.md` — full setup guide (connection strings, migrations, storage)
+- `.env.example` — updated with all Supabase variables
+
+**E2E Tests (Playwright)**
+- `playwright.config.ts` — Chromium + mobile Chrome, CI-ready config
+- `e2e/landing.spec.ts` — landing page, nav, mobile layout (7 tests)
+- `e2e/pages.spec.ts` — page titles, route accessibility (4 tests)
+- `e2e/api.spec.ts` — API health, auth, public routes (6 tests)
+
+**UI Polish**
+- `components/ui/loading.tsx` — `LoadingSpinner`, `SkeletonCard`, `SkeletonText`
+- `components/ui/feedback.tsx` — `ErrorBanner`, `EmptyState` with retry + dismiss
+
+**Monitoring**
+- `apps/api/src/lib/sentry.ts` — Sentry init + `captureError` helper
+
+**SCF Submission**
+- `docs/SCF_SUBMISSION.md` — complete checklist + copy-paste application text
+
+### Final project stats
+- **8 sessions** completed
+- **~140 files** across the monorepo
+- **20+ API endpoints**
+- **17 E2E tests**
+- **7 Soroban contract unit tests**
+- **30+ component tests**
+- **20 investor profiles** seeded
+- **Full stack**: Next.js + Express + Supabase + Stellar + Soroban + Claude API

@@ -1,14 +1,20 @@
 // BuildBridge — Prisma Schema
-// Session 2: added AuthChallenge model
+// Database: Supabase (PostgreSQL)
+// Session 8: added directUrl for migrations via Supabase pooler
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  // Pooled connection (PgBouncer, port 6543) — used at runtime
+  url       = env("DATABASE_URL")
+  // Direct connection (port 5432) — used for migrations only
+  directUrl = env("DIRECT_URL")
 }
+
+// ─── Enums ────────────────────────────────────────────────
 
 enum StellarNetwork {
   testnet
@@ -40,6 +46,8 @@ enum InvestorStage {
   any
 }
 
+// ─── Auth Challenge ───────────────────────────────────────
+
 model AuthChallenge {
   id        String   @id @default(cuid())
   publicKey String
@@ -49,6 +57,8 @@ model AuthChallenge {
 
   @@index([publicKey])
 }
+
+// ─── Founder ──────────────────────────────────────────────
 
 model Founder {
   id        String   @id @default(cuid())
@@ -74,6 +84,8 @@ model Founder {
 
   @@index([stellarPublicKey])
 }
+
+// ─── Pitch ────────────────────────────────────────────────
 
 model Pitch {
   id        String      @id @default(cuid())
@@ -108,6 +120,8 @@ model PitchVersion {
   note      String?
 }
 
+// ─── Milestone ────────────────────────────────────────────
+
 model Milestone {
   id        String            @id @default(cuid())
   createdAt DateTime          @default(now())
@@ -126,6 +140,8 @@ model Milestone {
 
   @@index([founderId])
 }
+
+// ─── Investor ─────────────────────────────────────────────
 
 model Investor {
   id        String   @id @default(cuid())
@@ -150,6 +166,8 @@ model Investor {
 
   @@index([sectors])
 }
+
+// ─── Investor Connection ──────────────────────────────────
 
 model InvestorConnection {
   id        String   @id @default(cuid())

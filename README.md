@@ -2,7 +2,7 @@
 
 > **Where builders meet capital**
 
-An Agentic AI platform on Stellar that helps founders craft investor-ready pitches, verify traction on-chain, and connect with the right investors.
+An Agentic AI platform on Stellar that helps founders craft investor-ready pitches, verify traction on-chain via Soroban, and connect with the right investors.
 
 [![CI](https://github.com/buildbridge/buildbridge/actions/workflows/ci.yml/badge.svg)](https://github.com/buildbridge/buildbridge/actions)
 
@@ -10,113 +10,77 @@ An Agentic AI platform on Stellar that helps founders craft investor-ready pitch
 
 ## The Problem
 
-Most founders, especially in emerging markets like Africa, fail to raise not because their ideas lack merit — but because they can't communicate their value effectively to VCs and investors. BuildBridge closes the pitch gap.
+Most founders, especially in Africa and emerging markets, fail to raise not because their ideas lack merit — but because they can't communicate their value effectively. BuildBridge closes the pitch gap.
 
-## What We Build
+## What We Built
 
 | Feature | Description |
 |---|---|
-| 🤖 AI Pitch Builder | Agentic AI (Claude) guides founders section-by-section through their pitch |
-| ⛓️ On-Chain Milestones | Key achievements recorded via Soroban smart contracts on Stellar |
-| 🎯 Investor Matching | Smart matching based on sector, stage, geography, and thesis |
-| 📊 Founder Profile | Public, investor-ready profile with verified on-chain traction |
+| 🤖 AI Pitch Builder | Claude streams section-by-section pitch coaching in real time |
+| ⛓️ On-Chain Milestones | Soroban smart contract records achievements immutably on Stellar |
+| 🎯 Investor Matching | Algorithm scores investors on sector, stage, geography, check size |
+| 📊 Founder Profile | Public investor-ready profile with verified on-chain traction |
 
 ---
 
-## Monorepo Structure
+## Quick Start
 
-```
-buildbridge/
-├── apps/
-│   ├── web/                   # Next.js 14 frontend
-│   └── api/                   # Node.js + Express backend
-├── packages/
-│   ├── ai/                    # Claude-powered PitchAgent
-│   ├── stellar/               # Freighter + Soroban integration
-│   ├── ui/                    # Shared React component library
-│   └── config-typescript/     # Shared TS configs
-├── contracts/
-│   └── milestone-tracker/     # Soroban smart contract (Rust)
-├── docs/                      # Architecture, contributing, sessions
-├── .github/
-│   ├── workflows/             # CI and deploy pipelines
-│   └── PULL_REQUEST_TEMPLATE.md
-├── turbo.json                 # Turborepo pipeline
-├── .env.example               # Environment variable template
-└── Cargo.toml                 # Rust workspace
+```bash
+git clone https://github.com/your-username/buildbridge.git
+cd buildbridge
+cp .env.example .env        # fill in your values
+
+npm install
+npm run dev                 # starts web on :3000, api on :4000
 ```
 
----
+See [docs/SUPABASE.md](docs/SUPABASE.md) for database setup.
 
 ## Tech Stack
 
 | Layer | Technology |
 |---|---|
-| Frontend | Next.js 14, TailwindCSS, shadcn/ui |
-| Backend | Node.js, Express, Prisma |
-| AI | Claude API (Anthropic) — Agentic pitch builder |
-| Blockchain | Stellar Network + Soroban smart contracts (Rust) |
-| Database | PostgreSQL |
+| Frontend | Next.js 14 + TailwindCSS |
+| Backend | Node.js + Express + Prisma |
+| Database | **Supabase** (PostgreSQL + RLS + Storage) |
+| AI | Claude API — `claude-sonnet-4-20250514` |
+| Blockchain | Stellar + Soroban smart contracts (Rust) |
 | Auth | Freighter wallet + JWT |
 | Monorepo | Turborepo |
-| CI/CD | GitHub Actions → Vercel (web) + Railway (api) |
-
----
-
-## Getting Started
-
-### Prerequisites
-- Node.js ≥ 18
-- PostgreSQL 15+
-- Rust + Stellar CLI (for contract work)
-- [Freighter browser extension](https://freighter.app)
-
-### Setup
-
-```bash
-# Clone
-git clone https://github.com/buildbridge/buildbridge.git
-cd buildbridge
-
-# Install all dependencies
-npm install
-
-# Set up environment
-cp .env.example .env
-# Fill in your values in .env
-
-# Run database migrations
-cd apps/api && npm run db:migrate && cd ../..
-
-# Start all apps in dev mode
-npm run dev
-```
-
-This starts:
-- **Web** → http://localhost:3000
-- **API** → http://localhost:4000
-- **API health check** → http://localhost:4000/health
-
----
+| Testing | Jest + Playwright E2E |
 
 ## Build Sessions
 
 | # | Session | Status |
 |---|---|---|
-| 1 | Project setup & monorepo config | ✅ Complete |
-| 2 | Database & auth layer | 🔜 Next |
-| 3 | AI Pitch Builder (backend) | ⏳ Pending |
-| 4 | AI Pitch Builder (frontend) | ⏳ Pending |
-| 5 | Soroban MilestoneTracker contract | ⏳ Pending |
-| 6 | Founder dashboard & public profile | ⏳ Pending |
-| 7 | Investor matching & discovery | ⏳ Pending |
-| 8 | Testing, polish & mainnet launch | ⏳ Pending |
+| 1 | Project setup & monorepo config | ✅ |
+| 2 | Database & auth layer | ✅ |
+| 3 | AI Pitch Builder (backend) | ✅ |
+| 4 | AI Pitch Builder (frontend) | ✅ |
+| 5 | Soroban MilestoneTracker contract | ✅ |
+| 6 | Founder dashboard & public profile | ✅ |
+| 7 | Investor matching & discovery | ✅ |
+| 8 | Testing, polish & Supabase migration | ✅ |
 
----
+## Deployment
 
-## Contributing
+```bash
+# Deploy contract to Stellar mainnet
+./contracts/deploy.sh mainnet
 
-See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md).
+# Deploy web (Vercel)
+vercel --prod
+
+# Deploy API (Railway)
+railway up
+
+# Run E2E tests
+npm run test:e2e
+```
+
+## SCF Submission
+
+See [docs/SCF_SUBMISSION.md](docs/SCF_SUBMISSION.md) for the complete checklist and application copy.
 
 ## License
 
