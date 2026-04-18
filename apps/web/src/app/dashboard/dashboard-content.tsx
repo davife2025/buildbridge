@@ -3,69 +3,137 @@
 import Link from 'next/link';
 import { useAuth } from '@/context/auth-context';
 import { usePitchList } from '@/hooks/use-pitch-list';
-import { SECTION_KEYS } from '@/lib/pitch-api';
 
-const FEATURES = [
-  { icon: '🤖', title: 'AI Pitch Builder', href: '/pitch-builder', desc: 'Claude guides you section by section through your pitch.' },
-  { icon: '⛓️', title: 'On-Chain Milestones', href: '/milestones', desc: 'Record achievements via Soroban smart contracts on Stellar.' },
-  { icon: '🎯', title: 'Investor Matching', href: '/investors', desc: 'Get matched with VCs and angels that fit your stage.' },
-];
+// ── Stat card ────────────────────────────────────────────────────────────────
+function StatCard({
+  label, value, sub, href,
+}: { label: string; value: number | string; sub?: string; href: string }) {
+  return (
+    <Link
+      href={href}
+      className="group rounded-2xl border border-gray-200 dark:border-[#1E3050] bg-white dark:bg-[#131C2E] p-5 shadow-sm transition-all hover:border-gray-300 dark:hover:border-[#2A3F64] hover:shadow-md"
+    >
+      <p className="mb-0.5 text-xs font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">
+        {label}
+      </p>
+      <p className="text-3xl font-extrabold tracking-tight text-gray-900 dark:text-white">{value}</p>
+      {sub && <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">{sub}</p>}
+    </Link>
+  );
+}
 
+// ── Action card ───────────────────────────────────────────────────────────────
+function ActionCard({
+  icon, title, desc, href, accent,
+}: { icon: string; title: string; desc: string; href: string; accent?: boolean }) {
+  return (
+    <Link
+      href={href}
+      className={[
+        'group rounded-2xl border p-5 transition-all hover:shadow-md block',
+        accent
+          ? 'border-[#99E9DC] bg-[#ECFDF9]'
+          : 'border-gray-200 dark:border-[#1E3050] bg-white dark:bg-[#131C2E] hover:border-gray-300 dark:hover:border-[#2A3F64] shadow-sm',
+      ].join(' ')}
+    >
+      <span className="mb-3 block text-2xl">{icon}</span>
+      <p className={['mb-1 font-bold text-sm', accent ? 'text-[#00927C]' : 'text-gray-900 dark:text-white'].join(' ')}>
+        {title}
+      </p>
+      <p className="text-xs leading-relaxed text-gray-500 dark:text-gray-400">{desc}</p>
+    </Link>
+  );
+}
+
+// ── Skeleton ─────────────────────────────────────────────────────────────────
+function Skeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-3 gap-4">
+        {[0,1,2].map(i => <div key={i} className="h-24 skeleton rounded-2xl" />)}
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        {[0,1,2,3].map(i => <div key={i} className="h-28 skeleton rounded-2xl" />)}
+      </div>
+    </div>
+  );
+}
+
+// ── Score colour ──────────────────────────────────────────────────────────────
+function scoreColor(s: number) {
+  return s >= 75 ? '#00C2A8' : s >= 50 ? '#F59E0B' : '#EF4444';
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
 export function DashboardContent() {
-  const { founder, isAuthenticated } = useAuth();
+  const { founder, isAuthenticated, isLoading } = useAuth();
   const { pitches } = usePitchList();
 
-  // ── Logged-in view ────────────────────────────────────────
+  if (isLoading) return <Skeleton />;
+
+  /* ── Authenticated ── */
   if (isAuthenticated && founder) {
-    const displayName =
-      founder.name ??
-      `${founder.publicKey.slice(0, 6)}…${founder.publicKey.slice(-4)}`;
+    const displayName = founder.name ?? `${founder.publicKey.slice(0, 6)}…${founder.publicKey.slice(-4)}`;
 
     return (
-      <main className="mx-auto max-w-5xl px-4 py-10">
+      <div className="max-w-4xl space-y-8">
+
         {/* Welcome */}
-        <div className="mb-8">
-          <p className="mb-1 text-sm text-white/40">Welcome back</p>
-          <h1 className="text-3xl font-bold">{displayName}</h1>
-          {founder.location && <p className="mt-1 text-sm text-white/40">📍 {founder.location}</p>}
+        <div>
+          <p className="text-xs font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">Welcome back</p>
+          <h2 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900 dark:text-white">
+            {displayName}
+          </h2>
+          {founder.location && (
+            <p className="mt-1 text-sm text-gray-400 dark:text-gray-500">📍 {founder.location}</p>
+          )}
         </div>
 
         {/* Stats */}
-        <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-3">
-          {[
-            { label: 'Pitches',      value: founder.pitchCount ?? 0,     href: '/pitch-builder' },
-            { label: 'Milestones',   value: founder.milestoneCount ?? 0,  href: '/milestones'    },
-            { label: 'Connections',  value: 0,                            href: '/investors'     },
-          ].map(({ label, value, href }) => (
-            <Link key={label} href={href}
-              className="rounded-xl border border-white/10 bg-navy-800 p-5 transition hover:border-white/20">
-              <p className="mb-1 text-sm text-white/40">{label}</p>
-              <p className="text-3xl font-bold text-white">{value}</p>
-            </Link>
-          ))}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <StatCard label="Pitches"     value={founder.pitchCount ?? 0}    sub="AI-crafted"         href="/pitch-builder" />
+          <StatCard label="Milestones"  value={founder.milestoneCount ?? 0} sub="On Stellar"         href="/milestones"    />
+          <StatCard label="Connections" value={0}                           sub="Investor requests"  href="/investors"     />
         </div>
 
         {/* Recent pitches */}
         {pitches.length > 0 && (
-          <div className="mb-8">
+          <div>
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-medium uppercase tracking-wider text-white/30">Recent pitches</h2>
-              <Link href="/pitch-builder" className="text-xs text-brand-400 hover:underline">View all →</Link>
+              <h3 className="section-label">Recent pitches</h3>
+              <Link href="/pitch-builder" className="text-xs font-semibold hover:underline" style={{ color: '#00C2A8' }}>
+                View all →
+              </Link>
             </div>
-            <div className="space-y-2">
-              {pitches.slice(0, 3).map((p) => (
-                <Link key={p.id} href={`/pitch-builder/${p.id}`}
-                  className="flex items-center justify-between rounded-xl border border-white/10 bg-navy-800 p-4 transition hover:border-white/20">
+            <div className="overflow-hidden rounded-2xl border border-gray-200 dark:border-[#1E3050] bg-white dark:bg-[#131C2E] shadow-sm divide-y divide-gray-100 dark:divide-[#1E3050]">
+              {pitches.slice(0, 4).map((p) => (
+                <Link
+                  key={p.id}
+                  href={`/pitch-builder/${p.id}`}
+                  className="flex items-center justify-between px-5 py-3.5 transition hover:bg-gray-50 dark:hover:bg-[#1A2640]"
+                >
                   <div>
-                    <p className="text-sm font-medium text-white">{p.projectName}</p>
-                    <p className="text-xs text-white/30">{p.status.replace('_', ' ')}</p>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{p.projectName}</p>
+                    {p.tagline && <p className="text-xs text-gray-400 dark:text-gray-500 truncate max-w-xs">{p.tagline}</p>}
                   </div>
-                  {p.overallScore !== null && (
-                    <span className="text-sm font-bold"
-                      style={{ color: p.overallScore >= 75 ? '#00C2A8' : p.overallScore >= 50 ? '#F5A623' : '#EF4444' }}>
-                      {p.overallScore}
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className={[
+                      'rounded-full px-2 py-0.5 text-xs font-semibold',
+                      p.status === 'complete'    ? 'bg-[#ECFDF9] text-[#00927C]'
+                      : p.status === 'in_progress' ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400'
+                      : 'bg-gray-100 dark:bg-[#1A2640] text-gray-500 dark:text-gray-400',
+                    ].join(' ')}>
+                      {p.status.replace('_', ' ')}
                     </span>
-                  )}
+                    {p.overallScore !== null && (
+                      <span className="text-sm font-bold tabular-nums" style={{ color: scoreColor(p.overallScore) }}>
+                        {p.overallScore}
+                      </span>
+                    )}
+                    <svg className="h-3.5 w-3.5 text-gray-300 dark:text-gray-600" fill="none" viewBox="0 0 16 16">
+                      <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
                 </Link>
               ))}
             </div>
@@ -73,81 +141,65 @@ export function DashboardContent() {
         )}
 
         {/* Quick actions */}
-        <h2 className="mb-4 text-sm font-medium uppercase tracking-wider text-white/30">Quick actions</h2>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Link href="/pitch-builder"
-            className="rounded-xl border border-brand-400/30 bg-brand-400/10 p-5 transition hover:bg-brand-400/15">
-            <p className="mb-1 font-medium text-brand-400">
-              {pitches.length === 0 ? 'Build your first pitch' : 'Open pitch builder'} →
-            </p>
-            <p className="text-sm text-white/40">Let AI guide you through crafting an investor-ready pitch</p>
-          </Link>
-          <Link href="/milestones"
-            className="rounded-xl border border-white/10 bg-navy-800 p-5 transition hover:border-white/20">
-            <p className="mb-1 font-medium text-white">Record a milestone →</p>
-            <p className="text-sm text-white/40">Verify your traction on-chain with Soroban</p>
-          </Link>
-          <Link href="/investors"
-            className="rounded-xl border border-white/10 bg-navy-800 p-5 transition hover:border-white/20">
-            <p className="mb-1 font-medium text-white">Find investors →</p>
-            <p className="text-sm text-white/40">Get matched with VCs and angels that fit your stage</p>
-          </Link>
-          <Link href={`/profile/${founder.id}`}
-            className="rounded-xl border border-white/10 bg-navy-800 p-5 transition hover:border-white/20">
-            <p className="mb-1 font-medium text-white">View your profile →</p>
-            <p className="text-sm text-white/40">Your public investor-facing founder profile</p>
-          </Link>
+        <div>
+          <h3 className="mb-3 section-label">Quick actions</h3>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <ActionCard
+              icon="🤖" accent
+              title={pitches.length === 0 ? 'Build first pitch →' : 'Open pitch builder →'}
+              desc="Let Kimi K2 AI guide you through your investor pitch"
+              href="/pitch-builder"
+            />
+            <ActionCard
+              icon="⛓️"
+              title="Record milestone →"
+              desc="Verify your traction on-chain with Soroban"
+              href="/milestones"
+            />
+            <ActionCard
+              icon="🎯"
+              title="Find investors →"
+              desc="Get matched with VCs that fit your stage"
+              href="/investors"
+            />
+            <ActionCard
+              icon="📊"
+              title="View profile →"
+              desc="Your public investor-facing founder profile"
+              href={`/profile/${founder.id}`}
+            />
+          </div>
         </div>
 
-        <div className="mt-10 flex items-center gap-2 text-xs text-white/20">
-          <span className="h-1.5 w-1.5 rounded-full bg-brand-400" />
-          Connected on Stellar {founder.network ?? 'testnet'}
-        </div>
-      </main>
+      </div>
     );
   }
 
-  // ── Logged-out view — show the product, not a gate ───────
+  /* ── Not authenticated — prompt to connect ── */
   return (
-    <main className="mx-auto max-w-5xl px-4 py-10">
-      {/* Hero */}
-      <div className="mb-12 text-center">
-        <h1 className="mb-3 text-4xl font-bold text-white md:text-5xl">
-          Build<span className="text-brand-400">Bridge</span>
-        </h1>
-        <p className="mb-2 text-lg text-white/60">Where builders meet capital</p>
-        <p className="mx-auto max-w-lg text-sm text-white/30">
-          Craft investor-ready pitches with Kimi K2 AI, verify traction on-chain via Soroban,
-          and connect with the right investors — all in one place.
+    <div className="max-w-2xl">
+      <div className="mb-8">
+        <h2 className="text-2xl font-extrabold tracking-tight text-gray-900 dark:text-white">
+          Build<span className="bg-clip-text text-transparent" style={{ backgroundImage: 'linear-gradient(135deg,#00C2A8,#00927C)' }}>Bridge</span>
+        </h2>
+        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+          Connect your Stellar wallet to unlock all features.
         </p>
       </div>
 
-      {/* Feature cards — always visible */}
-      <div className="mb-10 grid gap-4 sm:grid-cols-3">
-        {FEATURES.map(({ icon, title, href, desc }) => (
-          <Link key={title} href={href}
-            className="rounded-xl border border-white/10 bg-navy-800 p-5 transition hover:border-brand-400/30 hover:bg-brand-400/5">
-            <span className="mb-3 block text-2xl">{icon}</span>
-            <h3 className="mb-1 font-semibold text-white">{title}</h3>
-            <p className="text-sm text-white/40">{desc}</p>
-          </Link>
-        ))}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <ActionCard icon="🤖" accent title="AI Pitch Builder →" desc="Craft investor-ready pitches section by section" href="/pitch-builder" />
+        <ActionCard icon="⛓️" title="On-Chain Milestones →" desc="Record achievements immutably on Stellar" href="/milestones" />
+        <ActionCard icon="🎯" title="Investor Matching →" desc="Get matched with VCs by sector and stage" href="/investors" />
+        <ActionCard icon="📊" title="Founder Profile →" desc="A public profile with verified on-chain proof" href="/settings/profile" />
       </div>
 
-      {/* Subtle connect prompt — not a gate */}
-      <div className="rounded-xl border border-brand-400/20 bg-brand-400/5 px-6 py-8 text-center">
-        <p className="mb-1 font-semibold text-white">Ready to get started?</p>
-        <p className="mb-4 text-sm text-white/40">
-          Connect your Stellar wallet using the button in the top-right corner.
+      <div className="mt-8 rounded-2xl border border-[#99E9DC] bg-[#ECFDF9] px-6 py-6">
+        <p className="mb-1 font-bold text-gray-900">Ready to get started?</p>
+        <p className="text-sm text-gray-500">
+          Click <strong>Connect Wallet</strong> in the sidebar to authenticate with your Freighter wallet and unlock the full platform.
         </p>
-        <div className="flex items-center justify-center gap-2 text-xs text-white/20">
-          <span className="h-1.5 w-1.5 rounded-full bg-brand-400/60" />
-          Install Freighter from
-          <a href="https://freighter.app" target="_blank" rel="noopener noreferrer"
-            className="text-brand-400/60 hover:text-brand-400">freighter.app</a>
-          if you don't have it yet
-        </div>
       </div>
-    </main>
+    </div>
   );
 }

@@ -1,8 +1,4 @@
 import type { Metadata } from 'next';
 import { ProfileSettings } from './profile-settings';
-
 export const metadata: Metadata = { title: 'Edit Profile' };
-
-export default function ProfileSettingsPage() {
-  return <ProfileSettings />;
-}
+export default function ProfileSettingsPage() { return <ProfileSettings />; }

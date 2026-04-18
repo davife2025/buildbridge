@@ -1,39 +1,29 @@
-import { prisma } from '../db/client';
-import type { Investor, Pitch, Founder } from '@prisma/client';
+import { supabaseAdmin } from '../db/supabase';
 
 export interface InvestorMatch {
-  investor: Investor;
-  score: number;        // 0–100 match score
-  reasons: string[];    // human-readable match explanations
-  tags: string[];       // highlight tags shown on the card
+  investor: Record<string, unknown>;
+  score: number;
+  reasons: string[];
+  tags: string[];
 }
 
-interface FounderContext {
-  founder: Founder;
-  pitch: Pitch | null;
-}
-
-// ─── Scoring helpers ──────────────────────────────────────
+// ─── Scoring helpers (unchanged) ─────────────────────────
 
 function scoreStage(
   investorStages: string[],
   pitchStatus: string | undefined,
   pitchScore: number | null | undefined,
 ): { score: number; reason: string | null } {
-  // Infer founder stage from pitch completion
   let founderStage: string;
   if (!pitchStatus || pitchStatus === 'draft') founderStage = 'pre_seed';
-  else if (pitchScore !== null && pitchScore !== undefined && pitchScore >= 70) founderStage = 'seed';
+  else if (pitchScore != null && pitchScore >= 70) founderStage = 'seed';
   else founderStage = 'pre_seed';
 
   if (investorStages.includes(founderStage) || investorStages.includes('any')) {
     return { score: 30, reason: `Invests at ${founderStage.replace('_', '-')} stage` };
   }
-  if (
-    founderStage === 'pre_seed' &&
-    (investorStages.includes('seed') || investorStages.includes('series_a'))
-  ) {
-    return { score: 10, reason: null }; // not ideal but not ruled out
+  if (founderStage === 'pre_seed' && (investorStages.includes('seed') || investorStages.includes('series_a'))) {
+    return { score: 10, reason: null };
   }
   return { score: 0, reason: null };
 }
@@ -44,7 +34,6 @@ function scoreSectors(
 ): { score: number; reasons: string[] } {
   if (!pitchContent) return { score: 0, reasons: [] };
 
-  // Extract keywords from pitch content
   const pitchText = JSON.stringify(pitchContent).toLowerCase();
   const reasons: string[] = [];
   let score = 0;
@@ -65,20 +54,12 @@ function scoreSectors(
   };
 
   for (const sector of investorSectors) {
-    if (sector === 'any') {
-      score += 10;
-      continue;
-    }
+    if (sector === 'any') { score += 10; continue; }
     const keywords = sectorKeywords[sector];
     if (!keywords) continue;
-
     const matches = keywords.filter((kw) => pitchText.includes(kw));
-    if (matches.length >= 2) {
-      score += 25;
-      reasons.push(`Matches ${sector} thesis`);
-    } else if (matches.length === 1) {
-      score += 10;
-    }
+    if (matches.length >= 2) { score += 25; reasons.push(`Matches ${sector} thesis`); }
+    else if (matches.length === 1) { score += 10; }
   }
 
   return { score: Math.min(score, 40), reasons };
@@ -88,20 +69,15 @@ function scoreGeography(
   investorGeo: string[],
   founderLocation: string | null,
 ): { score: number; reason: string | null } {
-  if (investorGeo.includes('Global')) {
-    return { score: 15, reason: 'Invests globally' };
-  }
+  if (investorGeo.includes('Global')) return { score: 15, reason: 'Invests globally' };
   if (!founderLocation) return { score: 5, reason: null };
 
   const loc = founderLocation.toLowerCase();
   for (const geo of investorGeo) {
-    const geoLower = geo.toLowerCase();
-    if (
-      loc.includes(geoLower) ||
-      geoLower.includes('africa') && loc.includes('afric') ||
-      geoLower.includes('nigeria') && loc.includes('nigeria') ||
-      geoLower.includes('west africa') && (loc.includes('nigeria') || loc.includes('ghana'))
-    ) {
+    const g = geo.toLowerCase();
+    if (loc.includes(g) || (g.includes('africa') && loc.includes('afric')) ||
+        (g.includes('nigeria') && loc.includes('nigeria')) ||
+        (g.includes('west africa') && (loc.includes('nigeria') || loc.includes('ghana')))) {
       return { score: 15, reason: `Invests in ${geo}` };
     }
   }
@@ -110,29 +86,35 @@ function scoreGeography(
 
 // ─── Main matching function ───────────────────────────────
 
-export async function matchInvestors(
-  founderId: string,
-  limit = 10,
-): Promise<InvestorMatch[]> {
-  // Load founder context
-  const founder = await prisma.founder.findUnique({
-    where: { id: founderId },
-  });
+export async function matchInvestors(founderId: string, limit = 10): Promise<InvestorMatch[]> {
+  const { data: founder } = await supabaseAdmin
+    .from('founders')
+    .select('*')
+    .eq('id', founderId)
+    .single();
+
   if (!founder) return [];
 
-  const topPitch = await prisma.pitch.findFirst({
-    where: { founderId, status: { in: ['in_progress', 'complete'] } },
-    orderBy: [{ overallScore: 'desc' }, { updatedAt: 'desc' }],
-  });
+  const { data: topPitch } = await supabaseAdmin
+    .from('pitches')
+    .select('*')
+    .eq('founder_id', founderId)
+    .in('status', ['in_progress', 'complete'])
+    .order('overall_score', { ascending: false })
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
-  const allInvestors = await prisma.investor.findMany();
+  const { data: allInvestors } = await supabaseAdmin
+    .from('investors')
+    .select('*');
+
+  if (!allInvestors) return [];
 
   const pitchData: Record<string, unknown> = {};
   if (topPitch) {
     for (const key of ['problem', 'solution', 'traction', 'team', 'market', 'ask']) {
-      if (topPitch[key as keyof typeof topPitch]) {
-        pitchData[key] = topPitch[key as keyof typeof topPitch];
-      }
+      if (topPitch[key]) pitchData[key] = topPitch[key];
     }
   }
 
@@ -140,95 +122,74 @@ export async function matchInvestors(
     const reasons: string[] = [];
     let totalScore = 0;
 
-    // Stage fit (30 pts)
-    const stageFit = scoreStage(
-      investor.stages,
-      topPitch?.status,
-      topPitch?.overallScore,
-    );
+    const stageFit = scoreStage(investor.stages, topPitch?.status, topPitch?.overall_score);
     totalScore += stageFit.score;
     if (stageFit.reason) reasons.push(stageFit.reason);
 
-    // Sector fit (40 pts)
     const sectorFit = scoreSectors(investor.sectors, pitchData);
     totalScore += sectorFit.score;
     reasons.push(...sectorFit.reasons);
 
-    // Geography fit (15 pts)
     const geoFit = scoreGeography(investor.geography, founder.location);
     totalScore += geoFit.score;
     if (geoFit.reason) reasons.push(geoFit.reason);
 
-    // Check size fit (15 pts) — skip if no pitch yet
-    if (topPitch?.overallScore !== null && topPitch?.overallScore !== undefined) {
-      const estimatedRaise = 150000; // Default MVP ask
-      if (
-        investor.minCheck !== null &&
-        investor.maxCheck !== null &&
-        estimatedRaise >= investor.minCheck &&
-        estimatedRaise <= investor.maxCheck
-      ) {
+    if (topPitch?.overall_score != null) {
+      const estimatedRaise = 150000;
+      if (investor.min_check != null && investor.max_check != null &&
+          estimatedRaise >= investor.min_check && estimatedRaise <= investor.max_check) {
         totalScore += 15;
         reasons.push('Check size aligns');
-      } else if (investor.minCheck === null || investor.maxCheck === null) {
+      } else if (investor.min_check == null || investor.max_check == null) {
         totalScore += 8;
       }
     }
 
-    // Build highlight tags
     const tags: string[] = [];
-    if (investor.stages.includes('pre_seed') || investor.stages.includes('seed')) {
-      tags.push('Early stage');
-    }
-    if (investor.sectors.some((s) => ['africa', 'nigeria', 'kenya'].includes(s))) {
-      tags.push('Africa focus');
-    }
-    if (investor.sectors.some((s) => ['web3', 'blockchain', 'stellar', 'defi'].includes(s))) {
-      tags.push('Web3 native');
-    }
+    if (investor.stages.includes('pre_seed') || investor.stages.includes('seed')) tags.push('Early stage');
+    if (investor.sectors.some((s: string) => ['africa', 'nigeria', 'kenya'].includes(s))) tags.push('Africa focus');
+    if (investor.sectors.some((s: string) => ['web3', 'blockchain', 'stellar', 'defi'].includes(s))) tags.push('Web3 native');
     if (investor.geography.includes('Global')) tags.push('Global');
 
-    return {
-      investor,
-      score: Math.min(Math.round(totalScore), 100),
-      reasons: reasons.slice(0, 3),
-      tags,
-    };
+    return { investor, score: Math.min(Math.round(totalScore), 100), reasons: reasons.slice(0, 3), tags };
   });
 
-  // Sort by score descending
-  return matches
-    .filter((m) => m.score > 10)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit);
+  return matches.filter((m) => m.score > 10).sort((a, b) => b.score - a.score).slice(0, limit);
 }
 
 // ─── Connection management ────────────────────────────────
 
 export async function getConnections(founderId: string) {
-  return prisma.investorConnection.findMany({
-    where: { founderId },
-    include: { investor: true },
-    orderBy: { createdAt: 'desc' },
-  });
+  const { data, error } = await supabaseAdmin
+    .from('investor_connections')
+    .select('*, investor:investors(*)')
+    .eq('founder_id', founderId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return data;
 }
 
-export async function requestConnection(
-  founderId: string,
-  investorId: string,
-  message?: string,
-) {
-  // Check if investor exists
-  const investor = await prisma.investor.findUnique({ where: { id: investorId } });
+export async function requestConnection(founderId: string, investorId: string, message?: string) {
+  const { data: investor } = await supabaseAdmin
+    .from('investors')
+    .select('id')
+    .eq('id', investorId)
+    .single();
+
   if (!investor) throw new Error('Investor not found');
 
-  // Upsert — prevent duplicate requests
-  return prisma.investorConnection.upsert({
-    where: { founderId_investorId: { founderId, investorId } },
-    create: { founderId, investorId, message, status: 'pending' },
-    update: { message, status: 'pending' },
-    include: { investor: true },
-  });
+  const { data, error } = await supabaseAdmin
+    .from('investor_connections')
+    .upsert(
+      { founder_id: founderId, investor_id: investorId, message, status: 'pending' },
+      { onConflict: 'founder_id,investor_id' }
+    )
+    .select('*, investor:investors(*)')
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data;
 }
 
 export async function listAllInvestors(params: {
@@ -240,20 +201,16 @@ export async function listAllInvestors(params: {
 }) {
   const { sector, stage, geography, limit = 20, offset = 0 } = params;
 
-  const where: Record<string, unknown> = {};
-  if (sector) where['sectors'] = { has: sector };
-  if (stage) where['stages'] = { has: stage };
-  if (geography) where['geography'] = { has: geography };
+  let query = supabaseAdmin.from('investors').select('*', { count: 'exact' });
 
-  const [investors, total] = await Promise.all([
-    prisma.investor.findMany({
-      where,
-      skip: offset,
-      take: limit,
-      orderBy: { name: 'asc' },
-    }),
-    prisma.investor.count({ where }),
-  ]);
+  if (sector) query = query.contains('sectors', [sector]);
+  if (stage) query = query.contains('stages', [stage]);
+  if (geography) query = query.contains('geography', [geography]);
 
-  return { investors, total, limit, offset };
+  const { data: investors, count, error } = await query
+    .order('name', { ascending: true })
+    .range(offset, offset + limit - 1);
+
+  if (error) throw new Error(error.message);
+  return { investors, total: count ?? 0, limit, offset };
 }

@@ -1,108 +1,71 @@
-import { prisma } from '../db/client';
+import { supabaseAdmin } from '../db/supabase';
 
-/**
- * Fetches a full public founder profile by founder ID.
- * Aggregates: founder info, pitches, milestones (on-chain only for public view).
- * Returns null if founder not found.
- */
 export async function getPublicProfile(founderId: string) {
-  const founder = await prisma.founder.findUnique({
-    where: { id: founderId },
-    include: {
-      pitches: {
-        where: { status: 'complete' },
-        orderBy: { overallScore: 'desc' },
-        take: 1,
-        select: {
-          id: true,
-          projectName: true,
-          tagline: true,
-          overallScore: true,
-          problem: true,
-          solution: true,
-          traction: true,
-          team: true,
-          market: true,
-          ask: true,
-          status: true,
-          updatedAt: true,
-        },
-      },
-      milestones: {
-        orderBy: { createdAt: 'desc' },
-        select: {
-          id: true,
-          title: true,
-          description: true,
-          category: true,
-          txHash: true,
-          onChainId: true,
-          contractId: true,
-          verifiedAt: true,
-          createdAt: true,
-        },
-      },
-      _count: {
-        select: { pitches: true, milestones: true },
-      },
-    },
-  });
+  const { data: founder, error } = await supabaseAdmin
+    .from('founders')
+    .select(`
+      *,
+      pitches:pitches(
+        id, project_name, tagline, overall_score,
+        problem, solution, traction, team, market, ask,
+        status, updated_at
+      ),
+      milestones:milestones(
+        id, title, description, category,
+        tx_hash, on_chain_id, contract_id, verified_at, created_at
+      )
+    `)
+    .eq('id', founderId)
+    .eq('pitches.status', 'complete')
+    .order('overall_score', { referencedTable: 'pitches', ascending: false })
+    .order('created_at', { referencedTable: 'milestones', ascending: false })
+    .single();
 
-  if (!founder) return null;
+  if (error || !founder) return null;
 
-  // Compute profile completeness score (0-100)
   let completeness = 0;
   if (founder.name) completeness += 15;
   if (founder.bio) completeness += 15;
   if (founder.location) completeness += 10;
-  if (founder.avatarUrl) completeness += 10;
-  if (founder.twitterHandle || founder.linkedinUrl) completeness += 10;
-  if (founder.websiteUrl) completeness += 10;
-  if (founder.pitches.length > 0) completeness += 20;
-  if (founder.milestones.some((m) => m.txHash)) completeness += 10;
+  if (founder.avatar_url) completeness += 10;
+  if (founder.twitter_handle || founder.linkedin_url) completeness += 10;
+  if (founder.website_url) completeness += 10;
+  if (founder.pitches?.length > 0) completeness += 20;
+  if (founder.milestones?.some((m: { tx_hash: string | null }) => m.tx_hash)) completeness += 10;
 
   return {
     id: founder.id,
-    publicKey: founder.stellarPublicKey,
+    publicKey: founder.stellar_public_key,
     network: founder.network,
     name: founder.name,
     bio: founder.bio,
     location: founder.location,
-    avatarUrl: founder.avatarUrl,
-    twitterHandle: founder.twitterHandle,
-    githubHandle: founder.githubHandle,
-    linkedinUrl: founder.linkedinUrl,
-    websiteUrl: founder.websiteUrl,
+    avatarUrl: founder.avatar_url,
+    twitterHandle: founder.twitter_handle,
+    githubHandle: founder.github_handle,
+    linkedinUrl: founder.linkedin_url,
+    websiteUrl: founder.website_url,
     completeness,
-    pitchCount: founder._count.pitches,
-    milestoneCount: founder._count.milestones,
-    onChainMilestoneCount: founder.milestones.filter((m) => m.txHash).length,
-    topPitch: founder.pitches[0] ?? null,
-    milestones: founder.milestones,
-    joinedAt: founder.createdAt,
+    pitchCount: founder.pitches?.length ?? 0,
+    milestoneCount: founder.milestones?.length ?? 0,
+    onChainMilestoneCount: founder.milestones?.filter((m: { tx_hash: string | null }) => m.tx_hash).length ?? 0,
+    topPitch: founder.pitches?.[0] ?? null,
+    milestones: founder.milestones ?? [],
+    joinedAt: founder.created_at,
   };
 }
 
-/**
- * Searches founders by name or public key (for discovery).
- */
 export async function searchFounders(query: string, limit = 10) {
-  return prisma.founder.findMany({
-    where: {
-      OR: [
-        { name: { contains: query, mode: 'insensitive' } },
-        { stellarPublicKey: { contains: query } },
-      ],
-    },
-    select: {
-      id: true,
-      name: true,
-      stellarPublicKey: true,
-      bio: true,
-      location: true,
-      avatarUrl: true,
-      _count: { select: { milestones: true, pitches: true } },
-    },
-    take: limit,
-  });
+  const { data, error } = await supabaseAdmin
+    .from('founders')
+    .select(`
+      id, name, stellar_public_key, bio, location, avatar_url,
+      pitches(count),
+      milestones(count)
+    `)
+    .or(`name.ilike.%${query}%,stellar_public_key.ilike.%${query}%`)
+    .limit(limit);
+
+  if (error) throw new Error(error.message);
+  return data;
 }

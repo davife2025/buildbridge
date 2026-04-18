@@ -1,14 +1,7 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/context/auth-context';
-import { Navbar } from '@/components/auth/navbar';
-
-const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-inter',
-  display: 'swap',
-});
+import { ThemeProvider } from '@/context/theme-context';
 
 export const metadata: Metadata = {
   title: {
@@ -17,21 +10,23 @@ export const metadata: Metadata = {
   },
   description:
     'An Agentic AI platform on Stellar that helps founders craft investor-ready pitches, verify traction on-chain, and connect with the right investors.',
-  openGraph: {
-    type: 'website',
-    url: 'https://buildbridge.xyz',
-    siteName: 'BuildBridge',
-  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={inter.variable}>
-      <body className="bg-navy-900 text-white antialiased">
-        <AuthProvider>
-          <Navbar />
-          <div className="pt-14">{children}</div>
-        </AuthProvider>
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Prevent flash of wrong theme */}
+        <script dangerouslySetInnerHTML={{
+          __html: `try{const s=localStorage.getItem('bb_theme');const p=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.classList.toggle('dark',(s??p)==='dark')}catch(e){}`
+        }} />
+      </head>
+      <body className="bg-[#F8FAFC] dark:bg-[#0B1120] text-gray-900 dark:text-gray-100 antialiased transition-colors duration-200">
+        <ThemeProvider>
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

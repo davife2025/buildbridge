@@ -1,6 +1,5 @@
 import { HfInference } from '@huggingface/inference';
-import { prisma } from '../db/client';
-import type { PitchStatus } from '@prisma/client';
+import { supabaseAdmin } from '../db/supabase';  // ✅ Supabase instead of Prisma
 
 const HF_MODEL = 'moonshotai/Kimi-K2-Instruct';
 
@@ -18,6 +17,7 @@ export interface PitchSectionData {
 }
 
 export type SectionKey = 'problem' | 'solution' | 'traction' | 'team' | 'market' | 'ask';
+export type PitchStatus = 'draft' | 'in_progress' | 'complete' | 'archived';
 
 export const SECTION_KEYS: SectionKey[] = [
   'problem', 'solution', 'traction', 'team', 'market', 'ask',
@@ -38,10 +38,6 @@ const SECTION_GUIDANCE: Record<SectionKey, string> = {
 
 // ─── Streaming refinement ─────────────────────────────────
 
-/**
- * Streams Kimi K2's refinement of a pitch section via HuggingFace.
- * Calls onChunk with each text delta for SSE streaming to the frontend.
- */
 export async function streamSectionRefinement(params: {
   section: SectionKey;
   founderInput: string;
@@ -117,65 +113,110 @@ Respond ONLY with JSON:
 
   const raw = response.choices[0]?.message?.content ?? '{}';
   const cleaned = raw.replace(/```json|```/g, '').trim();
-  return JSON.parse(cleaned) as {
-    overallScore: number;
-    feedback: string;
-    strengths: string[];
-    improvements: string[];
-  };
+  return JSON.parse(cleaned);
 }
 
-// ─── DB helpers (unchanged) ───────────────────────────────
+// ─── DB helpers (Supabase) ────────────────────────────────
 
 export async function createPitch(founderId: string, projectName: string, tagline?: string) {
-  return prisma.pitch.create({ data: { founderId, projectName, tagline, status: 'draft' } });
+  const { data, error } = await supabaseAdmin
+    .from('pitches')
+    .insert({ founder_id: founderId, project_name: projectName, tagline, status: 'draft' })
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data;
 }
 
 export async function getPitch(pitchId: string, founderId: string) {
-  return prisma.pitch.findFirst({
-    where: { id: pitchId, founderId },
-    include: { versions: { orderBy: { createdAt: 'desc' }, take: 5 } },
-  });
+  const { data, error } = await supabaseAdmin
+    .from('pitches')
+    .select(`*, versions:pitch_versions(id, note, created_at)`)
+    .eq('id', pitchId)
+    .eq('founder_id', founderId)
+    .order('created_at', { referencedTable: 'pitch_versions', ascending: false })
+    .limit(5, { referencedTable: 'pitch_versions' })
+    .single();
+
+  if (error) return null;
+  return data;
 }
 
 export async function listPitches(founderId: string) {
-  return prisma.pitch.findMany({
-    where: { founderId },
-    orderBy: { updatedAt: 'desc' },
-    select: {
-      id: true, projectName: true, tagline: true,
-      status: true, overallScore: true, createdAt: true, updatedAt: true,
-    },
-  });
+  const { data, error } = await supabaseAdmin
+    .from('pitches')
+    .select('id, project_name, tagline, status, overall_score, created_at, updated_at')
+    .eq('founder_id', founderId)
+    .order('updated_at', { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return data;
 }
 
 export async function updatePitchSection(
-  pitchId: string, founderId: string,
-  section: SectionKey, data: PitchSectionData,
+  pitchId: string,
+  founderId: string,
+  section: SectionKey,
+  data: PitchSectionData,
 ) {
-  return prisma.pitch.update({
-    where: { id: pitchId, founderId },
-    data: { [section]: data, status: 'in_progress' },
-  });
+  const { error } = await supabaseAdmin
+    .from('pitches')
+    .update({ [section]: data, status: 'in_progress' })
+    .eq('id', pitchId)
+    .eq('founder_id', founderId);
+
+  if (error) throw new Error(error.message);
 }
 
 export async function savePitchVersion(pitchId: string, note?: string) {
-  const pitch = await prisma.pitch.findUnique({ where: { id: pitchId } });
-  if (!pitch) throw new Error('Pitch not found');
-  return prisma.pitchVersion.create({ data: { pitchId, snapshot: pitch as object, note } });
+  // Grab the current pitch snapshot
+  const { data: pitch, error: fetchError } = await supabaseAdmin
+    .from('pitches')
+    .select('*')
+    .eq('id', pitchId)
+    .single();
+
+  if (fetchError || !pitch) throw new Error('Pitch not found');
+
+  const { data, error } = await supabaseAdmin
+    .from('pitch_versions')
+    .insert({ pitch_id: pitchId, snapshot: pitch, note })
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data;
 }
 
 export async function updatePitchScore(pitchId: string, overallScore: number) {
-  return prisma.pitch.update({
-    where: { id: pitchId },
-    data: { overallScore, status: 'complete' },
-  });
+  const { error } = await supabaseAdmin
+    .from('pitches')
+    .update({ overall_score: overallScore, status: 'complete' })
+    .eq('id', pitchId);
+
+  if (error) throw new Error(error.message);
 }
 
 export async function updatePitchStatus(pitchId: string, founderId: string, status: PitchStatus) {
-  return prisma.pitch.update({ where: { id: pitchId, founderId }, data: { status } });
+  const { data, error } = await supabaseAdmin
+    .from('pitches')
+    .update({ status })
+    .eq('id', pitchId)
+    .eq('founder_id', founderId)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data;
 }
 
 export async function deletePitch(pitchId: string, founderId: string) {
-  return prisma.pitch.delete({ where: { id: pitchId, founderId } });
+  const { error } = await supabaseAdmin
+    .from('pitches')
+    .delete()
+    .eq('id', pitchId)
+    .eq('founder_id', founderId);
+
+  if (error) throw new Error(error.message);
 }

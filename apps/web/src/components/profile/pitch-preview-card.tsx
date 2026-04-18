@@ -1,72 +1,39 @@
 import type { TopPitch } from '@/lib/profile-api';
 import { SECTION_KEYS, SECTION_LABELS } from '@/lib/pitch-api';
 
-interface PitchPreviewCardProps {
-  pitch: TopPitch;
-}
-
 function ScoreBadge({ score }: { score: number }) {
-  const color =
-    score >= 75 ? '#00C2A8' : score >= 50 ? '#F5A623' : '#EF4444';
-  return (
-    <span className="text-sm font-bold" style={{ color }}>
-      {score}/100
-    </span>
-  );
+  const color = score >= 75 ? '#00C2A8' : score >= 50 ? '#F59E0B' : '#EF4444';
+  return <span className="text-sm font-extrabold" style={{ color }}>{score}/100</span>;
 }
 
-export function PitchPreviewCard({ pitch }: PitchPreviewCardProps) {
+export function PitchPreviewCard({ pitch }: { pitch: TopPitch }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-navy-800">
-      {/* Header */}
-      <div className="flex items-start justify-between border-b border-white/5 p-5">
+    <div className="overflow-hidden rounded-2xl border border-gray-200 dark:border-[#1E3050] bg-white dark:bg-[#131C2E] shadow-sm">
+      <div className="flex items-start justify-between border-b border-gray-100 dark:border-[#1E3050] p-5">
         <div>
-          <h3 className="font-bold text-white">{pitch.projectName}</h3>
-          {pitch.tagline && (
-            <p className="mt-0.5 text-sm text-white/40">{pitch.tagline}</p>
-          )}
+          <h3 className="font-extrabold text-gray-900 dark:text-white">{pitch.projectName}</h3>
+          {pitch.tagline && <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">{pitch.tagline}</p>}
         </div>
         {pitch.overallScore !== null && (
           <div className="text-right">
-            <p className="text-xs text-white/30">Pitch score</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500">Pitch score</p>
             <ScoreBadge score={pitch.overallScore} />
           </div>
         )}
       </div>
 
-      {/* Sections */}
-      <div className="divide-y divide-white/5">
+      <div className="divide-y divide-gray-50 dark:divide-[#1E3050]">
         {SECTION_KEYS.map((key) => {
-          const section = pitch[key as keyof TopPitch] as {
-            title: string;
-            content: string;
-            score: number;
-          } | null;
+          const section = pitch[key as keyof TopPitch] as { title: string; content: string; score: number } | null;
           if (!section) return null;
-
+          const color = section.score >= 75 ? '#00C2A8' : section.score >= 50 ? '#F59E0B' : '#EF4444';
           return (
             <div key={key} className="px-5 py-4">
               <div className="mb-1.5 flex items-center justify-between">
-                <span className="text-xs font-semibold uppercase tracking-wider text-white/30">
-                  {SECTION_LABELS[key]}
-                </span>
-                <span
-                  className="text-xs font-medium"
-                  style={{
-                    color:
-                      section.score >= 75
-                        ? '#00C2A8'
-                        : section.score >= 50
-                          ? '#F5A623'
-                          : '#EF4444',
-                  }}
-                >
-                  {section.score}
-                </span>
+                <span className="section-label">{SECTION_LABELS[key]}</span>
+                <span className="text-xs font-bold" style={{ color }}>{section.score}</span>
               </div>
-              <p className="text-sm leading-relaxed text-white/60">
-                {section.content}
-              </p>
+              <p className="text-sm leading-relaxed text-gray-600 dark:text-gray-300">{section.content}</p>
             </div>
           );
         })}

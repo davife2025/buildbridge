@@ -24,8 +24,8 @@ export function PitchBuilderIndex() {
     <main className="mx-auto max-w-3xl px-4 py-10">
       <div className="mb-8 flex items-start justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-white">Pitch Builder</h1>
-          <p className="mt-1 text-sm text-white/40">AI-guided, investor-ready pitches built section by section.</p>
+          <h1 className="text-3xl font-extrabold tracking-tight text-gray-900 dark:text-white">Pitch Builder</h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">AI-guided, investor-ready pitches built section by section.</p>
         </div>
         {isAuthenticated && (
           <button onClick={() => setShowCreate(true)} className="btn-primary">+ New pitch</button>
@@ -33,34 +33,30 @@ export function PitchBuilderIndex() {
       </div>
 
       {!isAuthenticated ? (
-        <div className="rounded-xl border border-white/10 bg-navy-800 p-10 text-center">
+        <div className="rounded-2xl border border-gray-200 dark:border-[#1E3050] bg-white dark:bg-[#131C2E] p-10 text-center shadow-sm">
           <p className="mb-2 text-3xl">🤖</p>
-          <p className="mb-1 font-semibold text-white">AI Pitch Builder</p>
-          <p className="mb-4 text-sm text-white/40">
-            Connect your wallet via the navbar to start building your investor-ready pitch with Kimi K2.
-          </p>
-          <div className="space-y-3 text-left mx-auto max-w-xs">
+          <p className="mb-1 font-bold text-gray-900 dark:text-white">AI Pitch Builder</p>
+          <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">Connect your wallet via the navbar to start building your investor-ready pitch with Kimi K2.</p>
+          <div className="mx-auto max-w-xs space-y-3 text-left">
             {['Problem statement', 'Solution', 'Traction', 'Team', 'Market sizing', 'The ask'].map((s, i) => (
-              <div key={s} className="flex items-center gap-3 text-sm text-white/30">
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/5 text-xs">{i + 1}</span>
+              <div key={s} className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-100 dark:bg-[#1A2640] text-xs font-bold text-gray-600 dark:text-gray-400">{i + 1}</span>
                 {s}
               </div>
             ))}
           </div>
         </div>
       ) : isLoading ? (
-        <div className="space-y-3">{[0, 1, 2].map(i => <div key={i} className="h-20 animate-pulse rounded-xl bg-white/5" />)}</div>
+        <div className="space-y-3">{[0, 1, 2].map(i => <div key={i} className="h-20 skeleton rounded-2xl" />)}</div>
       ) : pitches.length === 0 ? (
-        <div className="flex flex-col items-center rounded-xl border border-dashed border-white/10 py-16 text-center">
-          <p className="mb-2 text-white/30">No pitches yet</p>
-          <p className="mb-6 text-sm text-white/20">Create your first pitch and let AI help you craft it.</p>
+        <div className="flex flex-col items-center rounded-2xl border-2 border-dashed border-gray-200 dark:border-[#1E3050] bg-white dark:bg-[#131C2E] py-16 text-center">
+          <p className="mb-1 font-bold text-gray-500 dark:text-gray-400">No pitches yet</p>
+          <p className="mb-6 text-sm text-gray-400 dark:text-gray-500">Create your first pitch and let AI help you craft it.</p>
           <button onClick={() => setShowCreate(true)} className="btn-primary">Create first pitch →</button>
         </div>
       ) : (
         <div className="space-y-3">
-          {pitches.map(pitch => (
-            <PitchListCard key={pitch.id} pitch={pitch} onDelete={deletePitch} />
-          ))}
+          {pitches.map(pitch => <PitchListCard key={pitch.id} pitch={pitch} onDelete={deletePitch} />)}
         </div>
       )}
 

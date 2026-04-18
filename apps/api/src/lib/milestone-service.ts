@@ -1,24 +1,34 @@
-import { prisma } from '../db/client';
+import { supabaseAdmin } from '../db/supabase';
 import { createMilestoneContract } from '@buildbridge/stellar';
-import type { MilestoneCategory } from '@prisma/client';
 
-const VALID_CATEGORIES: MilestoneCategory[] = [
+export type MilestoneCategory = 'product' | 'traction' | 'funding' | 'team' | 'partnership' | 'other';
+
+export const VALID_CATEGORIES: MilestoneCategory[] = [
   'product', 'traction', 'funding', 'team', 'partnership', 'other',
 ];
-
-export { VALID_CATEGORIES };
 
 // ─── DB operations ────────────────────────────────────────
 
 export async function listMilestones(founderId: string) {
-  return prisma.milestone.findMany({
-    where: { founderId },
-    orderBy: { createdAt: 'desc' },
-  });
+  const { data, error } = await supabaseAdmin
+    .from('milestones')
+    .select('*')
+    .eq('founder_id', founderId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return data;
 }
 
 export async function getMilestone(id: string, founderId: string) {
-  return prisma.milestone.findFirst({ where: { id, founderId } });
+  const { data } = await supabaseAdmin
+    .from('milestones')
+    .select('*')
+    .eq('id', id)
+    .eq('founder_id', founderId)
+    .maybeSingle();
+
+  return data;
 }
 
 export async function createMilestoneRecord(params: {
@@ -27,14 +37,19 @@ export async function createMilestoneRecord(params: {
   description?: string;
   category: MilestoneCategory;
 }) {
-  return prisma.milestone.create({
-    data: {
-      founderId: params.founderId,
+  const { data, error } = await supabaseAdmin
+    .from('milestones')
+    .insert({
+      founder_id: params.founderId,
       title: params.title,
       description: params.description,
       category: params.category,
-    },
-  });
+    })
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data;
 }
 
 export async function confirmMilestoneOnChain(
@@ -44,27 +59,30 @@ export async function confirmMilestoneOnChain(
   onChainId: number,
   contractId: string,
 ) {
-  return prisma.milestone.update({
-    where: { id: milestoneId, founderId },
-    data: {
-      txHash,
-      onChainId,
-      contractId,
-      verifiedAt: new Date(),
-    },
-  });
+  const { data, error } = await supabaseAdmin
+    .from('milestones')
+    .update({ tx_hash: txHash, on_chain_id: onChainId, contract_id: contractId, verified_at: new Date().toISOString() })
+    .eq('id', milestoneId)
+    .eq('founder_id', founderId)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data;
 }
 
 export async function deleteMilestone(id: string, founderId: string) {
-  return prisma.milestone.delete({ where: { id, founderId } });
+  const { error } = await supabaseAdmin
+    .from('milestones')
+    .delete()
+    .eq('id', id)
+    .eq('founder_id', founderId);
+
+  if (error) throw new Error(error.message);
 }
 
-// ─── Contract operations ──────────────────────────────────
+// ─── Contract operations (unchanged) ─────────────────────
 
-/**
- * Builds the unsigned Soroban XDR for recording a milestone on-chain.
- * The frontend must sign this with Freighter and then call /submit.
- */
 export async function buildMilestoneTx(params: {
   founderPublicKey: string;
   title: string;
@@ -79,10 +97,6 @@ export async function buildMilestoneTx(params: {
   });
 }
 
-/**
- * Submits a signed XDR to Stellar and confirms on-chain.
- * Updates the DB record with txHash and onChainId.
- */
 export async function submitMilestoneTx(params: {
   signedXdr: string;
   milestoneId: string;
@@ -94,13 +108,7 @@ export async function submitMilestoneTx(params: {
 
   const { txHash, onChainId } = await contract.submitRecordMilestone(params.signedXdr);
 
-  await confirmMilestoneOnChain(
-    params.milestoneId,
-    params.founderId,
-    txHash,
-    onChainId,
-    contractId,
-  );
+  await confirmMilestoneOnChain(params.milestoneId, params.founderId, txHash, onChainId, contractId);
 
   return { txHash, onChainId };
 }
