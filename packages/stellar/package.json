@@ -15,5 +15,6 @@
   "devDependencies": {
     "@buildbridge/config-typescript": "*",
     "typescript": "^5.4.0"
-  }
+  },
+   "exclude": ["src/wallet.ts", "node_modules", "dist"]
 }
