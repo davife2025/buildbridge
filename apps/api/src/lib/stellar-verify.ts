@@ -1,15 +1,10 @@
 import { Keypair, hash } from '@stellar/stellar-sdk';
+import { randomBytes, timingSafeEqual } from 'crypto';
 
-/**
- * Verifies that a given signature was produced by the owner of `publicKey`
- * signing `message` with their Stellar secret key via Freighter.
- *
- * Freighter signs the SHA-256 hash of the raw message bytes.
- */
 export function verifyWalletSignature(params: {
   publicKey: string;
   message: string;
-  signature: string; // hex-encoded signature from Freighter
+  signature: string;
 }): boolean {
   try {
     const { publicKey, message, signature } = params;
@@ -25,21 +20,11 @@ export function verifyWalletSignature(params: {
   }
 }
 
-/**
- * Generates a cryptographically random challenge string.
- * Prefixed with "buildbridge:" so it's clearly scoped.
- */
 export function generateChallenge(): string {
-  const random = crypto.getRandomValues(new Uint8Array(32));
-  const hex = Array.from(random)
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
+  const hex = randomBytes(32).toString('hex');
   return `buildbridge:${hex}`;
 }
 
-/**
- * Returns the expiry timestamp for a challenge (5 minutes from now).
- */
 export function challengeExpiresAt(): Date {
   return new Date(Date.now() + 5 * 60 * 1000);
 }
