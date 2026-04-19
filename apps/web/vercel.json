@@ -2,5 +2,5 @@
   "framework": "nextjs",
   "buildCommand": "cd ../.. && npm run build --filter=@buildbridge/web",
   "outputDirectory": ".next",
-  "installCommand": "cd ../.. && npm install",
+  "installCommand": "cd ../.. && npm install"
 }
