@@ -3,6 +3,8 @@
   "compilerOptions": {
     "outDir": "dist",
     "rootDir": "src",
+    "moduleResolution": "node",
+    "ignoreDeprecations": "5.0",
     "paths": {}
   },
   "include": ["src"],
