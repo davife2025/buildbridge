@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { optionalAuth } from '../middleware/auth';
 import { createError } from '../middleware/error-handler';
 import { getPublicProfile, searchFounders } from '../lib/profile-service';
+import { supabaseAdmin } from '../db/supabase';
 
 export const profileRouter = Router();
 
@@ -28,17 +29,16 @@ profileRouter.get('/:id', optionalAuth, async (req, res, next) => {
  */
 profileRouter.get('/key/:publicKey', optionalAuth, async (req, res, next) => {
   try {
-    const { prisma } = await import('../db/client');
-    const founder = await prisma.founder.findUnique({
-      where: { stellarPublicKey: req.params['publicKey']! },
-      select: { id: true },
-    });
+    const { data: founder, error } = await supabaseAdmin
+      .from('founders')
+      .select('id')
+      .eq('stellar_public_key', req.params['publicKey']!)
+      .maybeSingle();
+
     if (!founder) throw createError('Founder not found', 404);
     const profile = await getPublicProfile(founder.id);
     res.json(profile);
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 });
 
 // ── GET /api/profiles/search?q= ───────────────────────────

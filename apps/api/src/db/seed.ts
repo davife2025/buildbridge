@@ -1,4 +1,4 @@
-import { prisma } from '../db/client';
+import { supabaseAdmin } from '../db/supabase';
 
 const INVESTORS = [
   {
@@ -239,30 +239,26 @@ const INVESTORS = [
     maxCheck: 150000,
   },
 ];
-
 export async function seedInvestors() {
   console.log('🌱 Seeding investors...');
-
   let created = 0;
   let skipped = 0;
 
   for (const investor of INVESTORS) {
-    const existing = await prisma.investor.findUnique({
-      where: { email: investor.email },
-    });
+    const { data: existing } = await supabaseAdmin
+      .from('investors')
+      .select('id')
+      .eq('email', investor.email)
+      .maybeSingle();
 
-    if (existing) {
-      skipped++;
-      continue;
-    }
+    if (existing) { skipped++; continue; }
 
-    await prisma.investor.create({
-      data: {
-        ...investor,
-        stages: investor.stages as string[],
-      },
-    });
-    created++;
+    const { error } = await supabaseAdmin
+      .from('investors')
+      .insert(investor);
+
+    if (error) console.error(`Failed to insert ${investor.name}:`, error.message);
+    else created++;
   }
 
   console.log(`✅ Investors seeded: ${created} created, ${skipped} skipped`);

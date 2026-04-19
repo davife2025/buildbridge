@@ -8,6 +8,7 @@ import {
   requestConnection,
   getConnections,
 } from '../lib/investor-service';
+import { supabaseAdmin } from '../db/supabase';
 
 export const investorRouter = Router();
 
@@ -64,15 +65,16 @@ investorRouter.get('/connections', requireAuth, async (req, res, next) => {
  */
 investorRouter.get('/:id', optionalAuth, async (req, res, next) => {
   try {
-    const { prisma } = await import('../db/client');
-    const investor = await prisma.investor.findUnique({
-      where: { id: req.params['id']! },
-    });
+    const { data: investor, error } = await supabaseAdmin
+      .from('investors')
+      .select('*')
+      .eq('id', req.params['id']!)
+      .maybeSingle();
+
     if (!investor) throw createError('Investor not found', 404);
     res.json(investor);
   } catch (err) { next(err); }
 });
-
 // ── POST /api/investors/:id/connect ──────────────────────
 /**
  * Request a connection with an investor.

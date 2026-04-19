@@ -6,6 +6,7 @@
  */
 
 import type { StellarNetwork, WalletConnection, SignedTransaction } from './types';
+const isBrowser = typeof window !== 'undefined';
 
 // ─── Detection ────────────────────────────────────────────
 
