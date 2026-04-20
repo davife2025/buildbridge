@@ -74,9 +74,43 @@ const sigResult = await signTransaction(message, {
 });
 
 if (sigResult.error) throw new Error(sigResult.error);
-const signature = sigResult.signedTxXdr ?? '';
-if (!signature) throw new Error('Freighter returned empty response');
 
+const raw = (sigResult as any).signedMessage ?? (sigResult as any).signature;
+
+console.log('[wallet] signedMessage type:', typeof raw);
+console.log('[wallet] signedMessage constructor:', raw?.constructor?.name);
+console.log('[wallet] signedMessage value:', raw);
+
+let signature: string;
+
+if (!raw) {
+  throw new Error('Freighter returned empty signature.');
+} else if (typeof raw === 'string') {
+  // Could be base64 or hex — try to detect
+  const isHex = /^[0-9a-fA-F]+$/.test(raw) && raw.length % 2 === 0;
+  if (isHex) {
+    signature = raw;
+  } else {
+    // base64 → hex
+    signature = Array.from(Uint8Array.from(atob(raw), c => c.charCodeAt(0)))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+  }
+} else if (raw instanceof Uint8Array || ArrayBuffer.isView(raw)) {
+  // Uint8Array, Int8Array, etc.
+  signature = Array.from(raw as Uint8Array)
+    .map((b: number) => b.toString(16).padStart(2, '0'))
+    .join('');
+} else if (Buffer.isBuffer(raw)) {
+  signature = raw.toString('hex');
+} else if (typeof raw === 'object' && raw?.type === 'Buffer' && Array.isArray(raw?.data)) {
+  signature = Buffer.from(raw.data).toString('hex');
+} else {
+  throw new Error(`Unknown signature format: ${typeof raw} / ${raw?.constructor?.name}`);
+}
+
+console.log('[wallet] final signature:', signature);
+console.log('[wallet] final signature length:', signature.length);
       // 7. Verify with API → receive JWT + founder
       setStatus('verifying');
       const { token: newToken, founder } = await authApi.connect({
