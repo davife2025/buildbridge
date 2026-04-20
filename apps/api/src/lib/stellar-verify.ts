@@ -1,5 +1,6 @@
 import { StrKey } from '@stellar/stellar-sdk';
-import { randomBytes, verify as cryptoVerify, createPublicKey } from 'crypto';
+import { randomBytes } from 'crypto';
+import * as nacl from 'tweetnacl';
 
 export function verifyWalletSignature(params: {
   publicKey: string;
@@ -9,30 +10,27 @@ export function verifyWalletSignature(params: {
   try {
     const { publicKey, signature } = params;
 
-    // Signature is "txHash:sigHex"
+    // Split "txHash:sigHex"
     const colonIdx = signature.indexOf(':');
     if (colonIdx === -1) {
-      console.error('[verify] invalid signature format — expected txHash:sigHex');
+      console.error('[verify] invalid format — expected txHash:sigHex');
       return false;
     }
 
-    const txHash   = signature.slice(0, colonIdx);
-    const sigHex   = signature.slice(colonIdx + 1);
+    const txHash = signature.slice(0, colonIdx);
+    const sigHex = signature.slice(colonIdx + 1);
 
     console.log('[verify] txHash:', txHash);
     console.log('[verify] sigHex length:', sigHex.length);
 
-    const txHashBytes = Buffer.from(txHash, 'hex');
-    const sigBytes    = Buffer.from(sigHex, 'hex');
-    const pubKeyBytes = StrKey.decodeEd25519PublicKey(publicKey);
+    const txHashBytes = new Uint8Array(Buffer.from(txHash, 'hex'));
+    const sigBytes    = new Uint8Array(Buffer.from(sigHex, 'hex'));
+    const pubKeyBytes = new Uint8Array(StrKey.decodeEd25519PublicKey(publicKey));
 
-    // Wrap Ed25519 public key in DER/SPKI format for Node.js crypto
-    const derPrefix = Buffer.from('302a300506032b6570032100', 'hex');
-    const pubKeyDer = Buffer.concat([derPrefix, pubKeyBytes]);
-    const pubKey    = createPublicKey({ key: pubKeyDer, format: 'der', type: 'spki' });
+    // Stellar signs txHash directly with Ed25519 — no additional hashing
+    // nacl.sign.detached.verify verifies raw Ed25519 without any digest
+    const result = nacl.sign.detached.verify(txHashBytes, sigBytes, pubKeyBytes);
 
-    // Stellar signs the transaction hash directly (no extra hashing)
-    const result = cryptoVerify(null, txHashBytes, pubKey, sigBytes);
     console.log('[verify] result:', result);
     return result;
   } catch (e) {
@@ -42,7 +40,6 @@ export function verifyWalletSignature(params: {
 }
 
 export function generateChallenge(): string {
-  // 16 bytes = 32 hex chars — safe for ManageData (≤ 64 bytes with prefix)
   return `buildbridge:${randomBytes(16).toString('hex')}`;
 }
 
