@@ -62,7 +62,7 @@ export function MilestonesContent() {
         </>
       ) : (
         <div className="rounded-2xl border border-gray-200 dark:border-[#1E3050] bg-white dark:bg-[#131C2E] p-10 text-center shadow-sm">
-          <p className="mb-3 text-4xl">⛓️</p>
+          <p className="mb-3 text-4xl"></p>
           <h2 className="mb-2 font-bold text-gray-900 dark:text-white">On-Chain Milestone Verification</h2>
           <p className="mx-auto mb-6 max-w-sm text-sm text-gray-500 dark:text-gray-400">
             Record your founder achievements on the Stellar blockchain — trustlessly verifiable by any investor.

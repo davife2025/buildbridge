@@ -1,10 +1,10 @@
 import Link from 'next/link';
 import { Navbar } from '@/components/auth/navbar';
 const FEATURES = [
-  { icon: '🤖', title: 'AI Pitch Builder',    body: 'Kimi K2 guides you section by section — problem, solution, traction, team, market, ask.' },
-  { icon: '⛓️', title: 'On-Chain Milestones', body: 'Record achievements via Soroban smart contracts — immutably verifiable by investors.' },
-  { icon: '🎯', title: 'Investor Matching',   body: 'Get matched with VCs and angels based on your sector, stage, and geography.' },
-  { icon: '📊', title: 'Founder Profile',     body: 'A public, investor-ready profile with verified on-chain traction as your proof.' },
+  { icon: '', title: 'AI Pitch Builder',    body: 'Kimi K2 guides you section by section — problem, solution, traction, team, market, ask.' },
+  { icon: '', title: 'On-Chain Milestones', body: 'Record achievements via Soroban smart contracts — immutably verifiable by investors.' },
+  { icon: '', title: 'Investor Matching',   body: 'Get matched with VCs and angels based on your sector, stage, and geography.' },
+  { icon: '', title: 'Founder Profile',     body: 'A public, investor-ready profile with verified on-chain traction as your proof.' },
 ];
 export default function HomePage() {
   return (
@@ -41,7 +41,7 @@ export default function HomePage() {
           </div>
         </section>
         <section className="border-t border-gray-100 dark:border-[#1E3050] bg-white dark:bg-[#131C2E] py-14 text-center">
-          <p className="text-sm text-gray-400 dark:text-gray-500">🌍 Built for founders in Africa and emerging markets — democratising access to global capital.</p>
+          <p className="text-sm text-gray-400 dark:text-gray-500"> Built for founders in Africa and emerging markets — democratising access to global capital.</p>
         </section>
       </main>
     </>

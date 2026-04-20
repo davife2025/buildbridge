@@ -69,7 +69,7 @@ export function InvestorsContent() {
           <div className="grid gap-4 sm:grid-cols-2">{[0,1,2,3].map(i => <div key={i} className="h-52 animate-pulse rounded-xl bg-white/5" />)}</div>
         ) : matches.length === 0 ? (
           <div className="flex flex-col items-center rounded-xl border border-dashed border-white/10 py-16 text-center">
-            <p className="mb-2 text-3xl">🎯</p>
+            <p className="mb-2 text-3xl"></p>
             <p className="mb-1 font-medium text-white/40">No matches yet</p>
             <p className="text-sm text-white/20">Complete your pitch and profile to get personalised investor matches.</p>
           </div>
@@ -94,7 +94,7 @@ export function InvestorsContent() {
           </div>
           {!isAuthenticated && (
             <div className="mb-4 rounded-lg border border-brand-400/20 bg-brand-400/5 px-4 py-3 text-sm text-white/50">
-              💡 Connect your wallet to get personalised matches and send connection requests.
+               Connect your wallet to get personalised matches and send connection requests.
             </div>
           )}
           {isLoadingAll ? (
@@ -122,7 +122,7 @@ export function InvestorsContent() {
       {tab === 'connections' && isAuthenticated && (
         connections.length === 0 ? (
           <div className="flex flex-col items-center rounded-xl border border-dashed border-white/10 py-16 text-center">
-            <p className="mb-2 text-3xl">🤝</p>
+            <p className="mb-2 text-3xl"></p>
             <p className="mb-1 font-medium text-white/40">No connections yet</p>
             <p className="text-sm text-white/20">Request a connection from the Matched or All investors tabs.</p>
           </div>

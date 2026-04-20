@@ -35,7 +35,7 @@ export function RecordMilestoneModal({ isOpen, status, lastTxHash, error, onSubm
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 dark:bg-black/70 p-4 backdrop-blur-sm">
         <div className="w-full max-w-sm rounded-2xl border border-gray-200 dark:border-[#1E3050] bg-white dark:bg-[#131C2E] p-6 shadow-lg">
           <h2 className="mb-6 text-center text-lg font-bold text-gray-900 dark:text-white">
-            {isDone ? 'Milestone recorded on-chain! 🎉' : 'Recording on-chain…'}
+            {isDone ? 'Milestone recorded on-chain! ' : 'Recording on-chain…'}
           </h2>
           <div className="mb-6 space-y-3">
             {STATUS_STEPS.map((step, idx) => {

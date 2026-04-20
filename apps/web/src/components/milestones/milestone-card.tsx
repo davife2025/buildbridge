@@ -27,7 +27,7 @@ export function MilestoneCard({ milestone, onDelete }: MilestoneCardProps) {
             <a href={explorerUrl!} target="_blank" rel="noopener noreferrer"
               className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold transition hover:opacity-80"
               style={{ background: '#ECFDF9', color: '#00927C' }}>
-              ⛓ On-chain
+               On-chain
             </a>
           ) : (
             <span className="rounded-full bg-gray-100 dark:bg-[#1A2640] px-2 py-0.5 text-xs font-medium text-gray-500 dark:text-gray-400">Off-chain</span>

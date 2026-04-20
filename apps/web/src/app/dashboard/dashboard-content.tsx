@@ -145,7 +145,7 @@ export function DashboardContent() {
           <h3 className="mb-3 section-label">Quick actions</h3>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <ActionCard
-              icon="🤖" accent
+              icon="" accent
               title={pitches.length === 0 ? 'Build first pitch →' : 'Open pitch builder →'}
               desc="Let Kimi K2 AI guide you through your investor pitch"
               href="/pitch-builder"
@@ -157,13 +157,13 @@ export function DashboardContent() {
               href="/milestones"
             />
             <ActionCard
-              icon="🎯"
+              icon=""
               title="Find investors →"
               desc="Get matched with VCs that fit your stage"
               href="/investors"
             />
             <ActionCard
-              icon="📊"
+              icon=""
               title="View profile →"
               desc="Your public investor-facing founder profile"
               href={`/profile/${founder.id}`}
@@ -188,10 +188,10 @@ export function DashboardContent() {
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <ActionCard icon="🤖" accent title="AI Pitch Builder →" desc="Craft investor-ready pitches section by section" href="/pitch-builder" />
-        <ActionCard icon="⛓️" title="On-Chain Milestones →" desc="Record achievements immutably on Stellar" href="/milestones" />
-        <ActionCard icon="🎯" title="Investor Matching →" desc="Get matched with VCs by sector and stage" href="/investors" />
-        <ActionCard icon="📊" title="Founder Profile →" desc="A public profile with verified on-chain proof" href="/settings/profile" />
+        <ActionCard icon="" accent title="AI Pitch Builder →" desc="Craft investor-ready pitches section by section" href="/pitch-builder" />
+        <ActionCard icon="" title="On-Chain Milestones →" desc="Record achievements immutably on Stellar" href="/milestones" />
+        <ActionCard icon="" title="Investor Matching →" desc="Get matched with VCs by sector and stage" href="/investors" />
+        <ActionCard icon="" title="Founder Profile →" desc="A public profile with verified on-chain proof" href="/settings/profile" />
       </div>
 
       <div className="mt-8 rounded-2xl border border-[#99E9DC] bg-[#ECFDF9] px-6 py-6">

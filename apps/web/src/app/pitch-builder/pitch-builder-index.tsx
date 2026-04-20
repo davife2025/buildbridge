@@ -34,7 +34,7 @@ export function PitchBuilderIndex() {
 
       {!isAuthenticated ? (
         <div className="rounded-2xl border border-gray-200 dark:border-[#1E3050] bg-white dark:bg-[#131C2E] p-10 text-center shadow-sm">
-          <p className="mb-2 text-3xl">🤖</p>
+          <p className="mb-2 text-3xl"></p>
           <p className="mb-1 font-bold text-gray-900 dark:text-white">AI Pitch Builder</p>
           <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">Connect your wallet via the navbar to start building your investor-ready pitch with Kimi K2.</p>
           <div className="mx-auto max-w-xs space-y-3 text-left">
