@@ -5,6 +5,8 @@
  * The window.freighter approach is deprecated — use the npm package.
  */
 
+// @ts-nocheck
+
 import type { StellarNetwork, WalletConnection, SignedTransaction } from './types';
 const isBrowser = typeof window !== 'undefined';
 

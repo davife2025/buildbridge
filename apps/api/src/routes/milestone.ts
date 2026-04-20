@@ -61,10 +61,13 @@ milestoneRouter.get('/:id', async (req, res, next) => {
 milestoneRouter.post('/', async (req, res, next) => {
   try {
     const body = createSchema.parse(req.body);
+    const { title, category, description } = createSchema.parse(req.body);
     const milestone = await createMilestoneRecord({
-      founderId: req.founder!.founderId,
-      ...body,
-    });
+  founderId: req.founder!.founderId,
+  title,
+  category,
+  description,
+});
     res.status(201).json(milestone);
   } catch (err) { next(err); }
 });
