@@ -15,10 +15,10 @@ const challengeSchema = z.object({
 });
 
 const connectSchema = z.object({
-  publicKey: z.string().min(56).max(56),
+  publicKey: z.string().min(1),
   challenge: z.string().startsWith('buildbridge:'),
-  signature: z.string().min(1),
-  network: z.enum(['testnet', 'mainnet']).default('testnet'),
+  signature: z.string().min(1),  
+  network:   z.enum(['testnet', 'mainnet']).default('testnet'),
 });
 
 // ── GET /api/auth/challenge ───────────────────────────────

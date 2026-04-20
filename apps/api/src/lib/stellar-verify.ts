@@ -1,60 +1,40 @@
 import { StrKey } from '@stellar/stellar-sdk';
 import { randomBytes, verify as cryptoVerify, createPublicKey } from 'crypto';
 
-function makePublicKey(pubKeyBytes: Buffer) {
-  const derPrefix = Buffer.from('302a300506032b6570032100', 'hex');
-  const pubKeyDer = Buffer.concat([derPrefix, pubKeyBytes]);
-  return createPublicKey({ key: pubKeyDer, format: 'der', type: 'spki' });
-}
-
 export function verifyWalletSignature(params: {
   publicKey: string;
   message: string;
-  signature: string;
+  signature: string; // format: "txHash:signatureHex"
 }): boolean {
   try {
-    const { publicKey, message, signature } = params;
-    const msgBytes    = Buffer.from(message, 'utf-8');
+    const { publicKey, signature } = params;
+
+    // Signature is "txHash:sigHex"
+    const colonIdx = signature.indexOf(':');
+    if (colonIdx === -1) {
+      console.error('[verify] invalid signature format — expected txHash:sigHex');
+      return false;
+    }
+
+    const txHash   = signature.slice(0, colonIdx);
+    const sigHex   = signature.slice(colonIdx + 1);
+
+    console.log('[verify] txHash:', txHash);
+    console.log('[verify] sigHex length:', sigHex.length);
+
+    const txHashBytes = Buffer.from(txHash, 'hex');
+    const sigBytes    = Buffer.from(sigHex, 'hex');
     const pubKeyBytes = StrKey.decodeEd25519PublicKey(publicKey);
-    const pubKey      = makePublicKey(pubKeyBytes);
 
-    // Interpretations of the signature to try
-    const sigCandidates: Buffer[] = [];
+    // Wrap Ed25519 public key in DER/SPKI format for Node.js crypto
+    const derPrefix = Buffer.from('302a300506032b6570032100', 'hex');
+    const pubKeyDer = Buffer.concat([derPrefix, pubKeyBytes]);
+    const pubKey    = createPublicKey({ key: pubKeyDer, format: 'der', type: 'spki' });
 
-    // 1. As hex
-    if (/^[0-9a-fA-F]+$/.test(signature) && signature.length % 2 === 0) {
-      sigCandidates.push(Buffer.from(signature, 'hex'));
-    }
-
-    // 2. As base64
-    try {
-      sigCandidates.push(Buffer.from(signature, 'base64'));
-    } catch { /* skip */ }
-
-    for (const sigBuf of sigCandidates) {
-      console.log(`[verify] trying sig (${sigBuf.length} bytes, first bytes: ${sigBuf.slice(0,4).toString('hex')})`);
-
-      // Try A: raw message bytes
-      try {
-        if (cryptoVerify(null, msgBytes, pubKey, sigBuf)) {
-          console.log('[verify] ✅ passed: raw bytes');
-          return true;
-        }
-      } catch { /* next */ }
-
-      // Try B: sha256 of message
-      try {
-        const { createHash } = require('crypto');
-        const hashed = createHash('sha256').update(msgBytes).digest();
-        if (cryptoVerify(null, hashed, pubKey, sigBuf)) {
-          console.log('[verify] ✅ passed: sha256 hash');
-          return true;
-        }
-      } catch { /* next */ }
-    }
-
-    console.log('[verify] ❌ all attempts failed');
-    return false;
+    // Stellar signs the transaction hash directly (no extra hashing)
+    const result = cryptoVerify(null, txHashBytes, pubKey, sigBytes);
+    console.log('[verify] result:', result);
+    return result;
   } catch (e) {
     console.error('[verify] error:', e);
     return false;
@@ -62,6 +42,7 @@ export function verifyWalletSignature(params: {
 }
 
 export function generateChallenge(): string {
+  // 16 bytes = 32 hex chars — safe for ManageData (≤ 64 bytes with prefix)
   return `buildbridge:${randomBytes(16).toString('hex')}`;
 }
 

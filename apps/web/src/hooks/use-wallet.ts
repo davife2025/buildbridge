@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import type { Transaction as StellarTransaction } from '@stellar/stellar-sdk';
 import { useAuth } from '@/context/auth-context';
 import { authApi } from '@/lib/api';
 
@@ -37,11 +38,10 @@ export function useWallet(): UseWalletReturn {
 
     try {
       // 1. Dynamic import — SSR safe
-      const { isConnected, requestAccess, getNetworkDetails, signMessage } =
-        await import('@stellar/freighter-api');
+      const freighter = await import('@stellar/freighter-api');
 
       // 2. Check Freighter is installed
-      const { isConnected: connected } = await isConnected();
+      const { isConnected: connected } = await freighter.isConnected();
       if (!connected) {
         throw new Error(
           'Freighter not detected. Please install the Freighter extension from freighter.app, then reload the page.',
@@ -50,80 +50,94 @@ export function useWallet(): UseWalletReturn {
 
       // 3. Request wallet access
       setStatus('connecting');
-      const access = await requestAccess();
+      const access = await freighter.requestAccess();
       if (access.error) throw new Error(access.error);
       const publicKey = access.address;
       if (!publicKey) throw new Error('Freighter returned no public key.');
 
       // 4. Determine network
-      const netDetails = await getNetworkDetails();
+      const netDetails = await freighter.getNetworkDetails();
       const network: 'testnet' | 'mainnet' = netDetails.networkPassphrase?.includes('Test')
         ? 'testnet'
         : 'mainnet';
 
-     // 5. Get auth challenge from API
-const { challenge, message } = await authApi.getChallenge(publicKey);
+      const rpcUrl = network === 'testnet'
+        ? 'https://soroban-testnet.stellar.org'
+        : 'https://soroban.stellar.org';
 
-// 6. Sign using signTransaction instead of signMessage
-setStatus('signing');
-const { signTransaction } = await import('@stellar/freighter-api');
+      // 5. Get auth challenge from API
+      const { challenge } = await authApi.getChallenge(publicKey);
 
-const sigResult = await signTransaction(message, {
-  address: publicKey,
-  networkPassphrase: netDetails.networkPassphrase,
-});
+      // 6. Build a Stellar transaction encoding the challenge
+      setStatus('signing');
 
-if (sigResult.error) throw new Error(sigResult.error);
+      const sdk    = await import('@stellar/stellar-sdk');
+      const server = new sdk.SorobanRpc.Server(rpcUrl);
+      const accountData = await server.getAccount(publicKey);
 
-const raw = (sigResult as any).signedMessage ?? (sigResult as any).signature;
+      // Challenge value must be ≤ 64 bytes for ManageData
+      const challengeValue = challenge.replace('buildbridge:', '').slice(0, 32);
 
-console.log('[wallet] signedMessage type:', typeof raw);
-console.log('[wallet] signedMessage constructor:', raw?.constructor?.name);
-console.log('[wallet] signedMessage value:', raw);
+      const tx = new sdk.TransactionBuilder(
+        new sdk.Account(accountData.accountId(), accountData.sequenceNumber()),
+        {
+          fee:               '100',
+          networkPassphrase: netDetails.networkPassphrase,
+        },
+      )
+        .addOperation(
+          sdk.Operation.manageData({
+            name:  'buildbridge_auth',
+            value: Buffer.from(challengeValue, 'utf-8'),
+          }),
+        )
+        .setTimeout(60)
+        .build();
 
-let signature: string;
+      // 7. Sign with Freighter
+      const signResult = await freighter.signTransaction(
+        tx.toEnvelope().toXDR('base64'),
+        {
+          networkPassphrase: netDetails.networkPassphrase,
+          address:           publicKey,
+        },
+      );
 
-if (!raw) {
-  throw new Error('Freighter returned empty signature.');
-} else if (typeof raw === 'string') {
-  // Could be base64 or hex — try to detect
-  const isHex = /^[0-9a-fA-F]+$/.test(raw) && raw.length % 2 === 0;
-  if (isHex) {
-    signature = raw;
-  } else {
-    // base64 → hex
-    signature = Array.from(Uint8Array.from(atob(raw), c => c.charCodeAt(0)))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
-  }
-} else if (raw instanceof Uint8Array || ArrayBuffer.isView(raw)) {
-  // Uint8Array, Int8Array, etc.
-  signature = Array.from(raw as Uint8Array)
-    .map((b: number) => b.toString(16).padStart(2, '0'))
-    .join('');
-} else if (Buffer.isBuffer(raw)) {
-  signature = raw.toString('hex');
-} else if (typeof raw === 'object' && raw?.type === 'Buffer' && Array.isArray(raw?.data)) {
-  signature = Buffer.from(raw.data).toString('hex');
-} else {
-  throw new Error(`Unknown signature format: ${typeof raw} / ${raw?.constructor?.name}`);
-}
+      if (signResult.error) throw new Error(signResult.error);
+      const signedXdr = signResult.signedTxXdr;
+      if (!signedXdr) throw new Error('Freighter returned no signed transaction.');
 
-console.log('[wallet] final signature:', signature);
-console.log('[wallet] final signature length:', signature.length);
-      // 7. Verify with API → receive JWT + founder
+      // 8. Extract signature and tx hash from signed envelope
+      const signedTx   = sdk.TransactionBuilder.fromXDR(signedXdr, netDetails.networkPassphrase);
+      const asTx       = signedTx as StellarTransaction;
+      const signatures = asTx.signatures;
+
+      if (!signatures || signatures.length === 0) {
+        throw new Error('No signatures found in signed transaction.');
+      }
+
+      const signature = signatures[0]!.signature().toString('hex');
+      const txHash    = asTx.hash().toString('hex');
+
+      console.log('[wallet] txHash:', txHash);
+      console.log('[wallet] signature:', signature);
+      console.log('[wallet] signature length:', signature.length);
+
+      // 9. Verify with API — send txHash:signature so backend can verify
       setStatus('verifying');
       const { token: newToken, founder } = await authApi.connect({
         publicKey,
         challenge,
-        signature,
+        signature: `${txHash}:${signature}`,
         network,
       });
 
       setSession(newToken, founder, publicKey);
       setStatus('idle');
+
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Wallet connection failed';
+      console.error('[wallet] error:', err);
       setError(msg);
       setStatus('error');
     }
