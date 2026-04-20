@@ -8,7 +8,7 @@
     "packages/*"
   ],
   "scripts": {
-       "build": "npm run build:stellar && npm run build:api",
+    "build": "npm run build:stellar && npm run build:api",
     "build:stellar": "npm --workspace=@buildbridge/stellar run build",
     "build:api": "npm --workspace=@buildbridge/api run build",
     "dev": "turbo run dev",
