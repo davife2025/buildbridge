@@ -62,7 +62,7 @@ export function verifyWalletSignature(params: {
 }
 
 export function generateChallenge(): string {
-  return `buildbridge:${randomBytes(32).toString('hex')}`;
+  return `buildbridge:${randomBytes(16).toString('hex')}`;
 }
 
 export function challengeExpiresAt(): Date {

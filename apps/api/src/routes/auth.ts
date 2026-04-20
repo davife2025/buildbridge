@@ -25,40 +25,29 @@ const connectSchema = z.object({
 authRouter.get('/challenge', async (req, res, next) => {
   try {
     const { publicKey } = challengeSchema.parse(req.query);
-    const challenge = generateChallenge();
-    const expiresAt = challengeExpiresAt();
 
-    // Build a minimal Stellar transaction for the client to sign
-    const { TransactionBuilder, Account, Networks, Operation, Asset } =
-      await import('@stellar/stellar-sdk');
+    const challenge  = generateChallenge();
+    const expiresAt  = challengeExpiresAt();
 
-    const account = new Account(publicKey, '0');
-    const tx = new TransactionBuilder(account, {
-      fee: '100',
-      networkPassphrase: Networks.TESTNET,
-    })
-      .addOperation(Operation.manageData({
-        name: 'buildbridge_auth',
-        value: challenge,
-      }))
-      .setTimeout(300)
-      .build();
+    // Store in Supabase only — no Stellar transaction needed here
+    const { error } = await supabaseAdmin
+      .from('auth_challenges')
+      .insert({
+        public_key: publicKey,
+        challenge,
+        expires_at: expiresAt.toISOString(),
+      });
 
-    const txXdr = tx.toXDR();
-
-    // Store the challenge
-    await supabaseAdmin.from('auth_challenges').insert({
-      public_key: publicKey,
-      challenge,
-      expires_at: expiresAt.toISOString(),
-    });
+    if (error) throw createError(error.message, 500);
 
     res.json({
       challenge,
       expiresAt: expiresAt.toISOString(),
-      message: txXdr, // send XDR as the "message" to sign
+      message: `Sign this challenge with your Stellar wallet to authenticate with BuildBridge.\n\nChallenge: ${challenge}`,
     });
-  } catch (err) { next(err); }
+  } catch (err) {
+    next(err);
+  }
 });
 // ── POST /api/auth/connect ────────────────────────────────
 
