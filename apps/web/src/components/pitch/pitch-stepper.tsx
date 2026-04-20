@@ -51,14 +51,21 @@ export function PitchStepper({ pitch, activeSection, onSelectSection }: PitchSte
                 {done && !isActive ? '✓' : idx + 1}
               </div>
               <span className="flex-1 text-sm font-semibold">{SECTION_LABELS[key]}</span>
-              {score !== null && (
-                <span className="text-xs font-bold" style={{
-                  color: isActive ? (undefined) : score >= 75 ? '#00C2A8' : score >= 50 ? '#F59E0B' : '#EF4444',
-                }}>
-                  {score}
-                </span>
-              )}
-            </button>
+              {score !== null && score !== undefined && (
+            <span
+              className="text-xs font-bold"
+              style={{
+                color: isActive
+                  ? undefined
+                  : score >= 75 ? '#00C2A8'
+                  : score >= 50 ? '#F59E0B'
+                  : '#EF4444',
+              }}
+            >
+              {score}
+            </span>
+            )}
+                      </button>
           );
         })}
       </div>
