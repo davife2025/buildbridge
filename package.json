@@ -8,14 +8,14 @@
     "packages/*"
   ],
   "scripts": {
+       "build": "npm run build:stellar && npm run build:api",
+    "build:stellar": "npm --workspace=@buildbridge/stellar run build",
+    "build:api": "npm --workspace=@buildbridge/api run build",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "type-check": "turbo run type-check",
     "test": "turbo run test",
-    "clean": "turbo run clean && rm -rf node_modules",
-     "build": "npm run build:stellar && npm run build:api",
-    "build:stellar": "npm --workspace=@buildbridge/stellar run build",
-    "build:api": "npm --workspace=@buildbridge/api run build"
+    "clean": "turbo run clean && rm -rf node_modules"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.0.0",
