@@ -1,5 +1,5 @@
-import { Keypair, hash } from '@stellar/stellar-sdk';
-import { randomBytes, timingSafeEqual } from 'crypto';
+import { Keypair } from '@stellar/stellar-sdk';
+import { randomBytes } from 'crypto';
 
 export function verifyWalletSignature(params: {
   publicKey: string;
@@ -11,18 +11,16 @@ export function verifyWalletSignature(params: {
 
     const keypair = Keypair.fromPublicKey(publicKey);
     const messageBytes = Buffer.from(message, 'utf-8');
-    const messageHash = hash(messageBytes);
     const sigBytes = Buffer.from(signature, 'hex');
 
-    return keypair.verify(messageHash, sigBytes);
+    return keypair.verify(messageBytes, sigBytes);
   } catch {
     return false;
   }
 }
 
 export function generateChallenge(): string {
-  const hex = randomBytes(32).toString('hex');
-  return `buildbridge:${hex}`;
+  return `buildbridge:${randomBytes(32).toString('hex')}`;
 }
 
 export function challengeExpiresAt(): Date {

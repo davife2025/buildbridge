@@ -64,30 +64,30 @@ export function useWallet(): UseWalletReturn {
       // 5. Get auth challenge from API
       const { challenge, message } = await authApi.getChallenge(publicKey);
 
-      // 6. Sign the challenge message with Freighter
-      setStatus('signing');
-          const sigResult = await signMessage(message, {
-        address: publicKey,
-        networkPassphrase: netDetails.networkPassphrase,
-      });
-      if (sigResult.error) throw new Error(sigResult.error);
-     const signature = sigResult.signedMessage
-  ? Buffer.isBuffer(sigResult.signedMessage)
-    ? sigResult.signedMessage.toString('hex')
-    : sigResult.signedMessage
-  : '';
+// 6. Sign the challenge message with Freighter
+setStatus('signing');
+const sigResult = await signMessage(message, {
+  address: publicKey,
+  networkPassphrase: netDetails.networkPassphrase,
+});
+if (sigResult.error) throw new Error(sigResult.error);
 
-      // 7. Verify with API → receive JWT + founder
-      setStatus('verifying');
-      const { token, founder } = await authApi.connect({
-        publicKey,
-        challenge,
-        signature,
-        network,
-      });
+const rawSig = sigResult.signedMessage ?? '';
+const signature: string = typeof rawSig === 'string'
+  ? Buffer.from(rawSig, 'base64').toString('hex')
+  : Buffer.from(rawSig).toString('hex');
 
-      setSession(token, founder, publicKey);
-      setStatus('idle');
+// 7. Verify with API → receive JWT + founder
+setStatus('verifying');
+const { token: newToken, founder } = await authApi.connect({
+  publicKey,
+  challenge,
+  signature,
+  network,
+});
+
+setSession(newToken, founder, publicKey);
+setStatus('idle');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Wallet connection failed';
       setError(msg);
