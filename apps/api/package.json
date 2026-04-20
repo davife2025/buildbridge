@@ -19,7 +19,6 @@
   },
   "dependencies": {
     "@buildbridge/ai": "*",
-    "@buildbridge/stellar": "*",
     "@huggingface/inference": "^2.8.0",
     "@prisma/client": "^5.14.0",
     "@sentry/node": "^10.49.0",

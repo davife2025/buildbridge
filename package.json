@@ -13,7 +13,7 @@
     "type-check": "turbo run type-check",
     "test": "turbo run test",
     "clean": "turbo run clean && rm -rf node_modules",
-     "build": "npm run build --workspaces",
+     "build": "npm run build:stellar && npm run build:api",
     "build:stellar": "npm --workspace=@buildbridge/stellar run build",
     "build:api": "npm --workspace=@buildbridge/api run build"
   },
