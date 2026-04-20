@@ -9,11 +9,11 @@
   ],
   "scripts": {
     "dev": "turbo run dev",
-    "build": "turbo run build",
     "lint": "turbo run lint",
     "type-check": "turbo run type-check",
     "test": "turbo run test",
     "clean": "turbo run clean && rm -rf node_modules",
+     "build": "npm run build --workspaces",
     "build:stellar": "npm --workspace=@buildbridge/stellar run build",
     "build:api": "npm --workspace=@buildbridge/api run build"
   },
