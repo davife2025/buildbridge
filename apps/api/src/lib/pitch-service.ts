@@ -1,5 +1,5 @@
 import { HfInference } from '@huggingface/inference';
-import { supabaseAdmin } from '../db/supabase';  // ✅ Supabase instead of Prisma
+import { supabaseAdmin } from '../db/supabase';  
 
 const HF_MODEL = 'moonshotai/Kimi-K2-Instruct';
 

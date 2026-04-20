@@ -1,11 +1,11 @@
 // Wallet
-export {
-  connectWallet,
-  disconnectWallet,
-  signTransaction,
-  isFreighterInstalled,
-  shortenPublicKey,
-} from './wallet';
+//export {
+  //connectWallet,
+  //disconnectWallet,
+  //signTransaction,
+  //isFreighterInstalled,
+  //shortenPublicKey,
+//} from './wallet';
 
 // Horizon
 export { getHorizonServer, getAccount, isAccountFunded, submitTransaction } from './horizon';
