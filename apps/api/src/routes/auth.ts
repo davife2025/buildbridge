@@ -66,11 +66,17 @@ authRouter.post('/connect', async (req, res, next) => {
     if (new Date() > new Date(stored.expires_at)) throw createError('Challenge has expired. Request a new one.', 401);
 
     
+    
     // 2. Verify the Stellar wallet signature
-    const messageToSign = `Sign this challenge with your Stellar wallet to authenticate with BuildBridge.\n\nChallenge: ${challenge}`;
-    const valid = verifyWalletSignature({ publicKey, message: messageToSign, signature });
+    // Right before verifyWalletSignature call
+const messageToSign = `Sign this challenge with your Stellar wallet to authenticate with BuildBridge.\n\nChallenge: ${challenge}`;
+console.log('[connect] messageToSign:', JSON.stringify(messageToSign));
+console.log('[connect] signature:', signature);
 
-    if (!valid) throw createError('Invalid wallet signature.', 401);
+const valid = verifyWalletSignature({ publicKey, message: messageToSign, signature });
+console.log('[connect] valid:', valid);
+
+if (!valid) throw createError('Invalid wallet signature.', 401);
 
 
     console.log('Received signature:', signature);
