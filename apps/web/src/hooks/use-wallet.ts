@@ -66,12 +66,16 @@ export function useWallet(): UseWalletReturn {
 
       // 6. Sign the challenge message with Freighter
       setStatus('signing');
-      const sigResult = await signMessage(message, {
-        accountToSign: publicKey,
+          const sigResult = await signMessage(message, {
+        address: publicKey,
         networkPassphrase: netDetails.networkPassphrase,
       });
       if (sigResult.error) throw new Error(sigResult.error);
-      const signature = sigResult.signedMessage ?? '';
+     const signature = sigResult.signedMessage
+  ? Buffer.isBuffer(sigResult.signedMessage)
+    ? sigResult.signedMessage.toString('hex')
+    : sigResult.signedMessage
+  : '';
 
       // 7. Verify with API → receive JWT + founder
       setStatus('verifying');
