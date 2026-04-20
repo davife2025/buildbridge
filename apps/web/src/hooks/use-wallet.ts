@@ -61,52 +61,21 @@ export function useWallet(): UseWalletReturn {
         ? 'testnet'
         : 'mainnet';
 
-      // 5. Get auth challenge from API
-     const { challenge, message } = await authApi.getChallenge(publicKey);
+     // 5. Get auth challenge from API
+const { challenge, message } = await authApi.getChallenge(publicKey);
 
-// Log exact bytes being signed
-console.log('[wallet] message to sign:', message);
-console.log('[wallet] message bytes:', Array.from(Buffer.from(message, 'utf-8')).join(','));
-console.log('[wallet] message length:', message.length);
-   // 6. Sign the challenge message with Freighter
+// 6. Sign using signTransaction instead of signMessage
 setStatus('signing');
-const sigResult = await signMessage(message, {
+const { signTransaction } = await import('@stellar/freighter-api');
+
+const sigResult = await signTransaction(message, {
   address: publicKey,
   networkPassphrase: netDetails.networkPassphrase,
 });
 
-   
-   
-      if (sigResult.error) throw new Error(sigResult.error);
-
-      // Freighter can return a Buffer object, Buffer instance, or string
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const rawSig = (sigResult as any).signedMessage ?? (sigResult as any).signature ?? '';
-
-      let signature: string;
-      if (Buffer.isBuffer(rawSig)) {
-        // Native Buffer instance
-        signature = rawSig.toString('hex').padStart(128, '0');
-      } else if (
-        typeof rawSig === 'object' &&
-        rawSig?.type === 'Buffer' &&
-        Array.isArray(rawSig?.data)
-      ) {
-        // Serialised Buffer object { type: 'Buffer', data: [...] }
-        signature = Buffer.from(rawSig.data).toString('hex').padStart(128, '0');
-      } else {
-        // Plain string (base64 or hex)
-        const str = String(rawSig);
-        // If it looks like base64, decode it first
-        const isHex = /^[0-9a-fA-F]+$/.test(str);
-        signature = isHex
-          ? str.padStart(128, '0')
-          : Buffer.from(str, 'base64').toString('hex').padStart(128, '0');
-      }
-
-      if (!signature || signature.replace(/^0+/, '') === '') {
-        throw new Error('Freighter returned an empty signature — please try again.');
-      }
+if (sigResult.error) throw new Error(sigResult.error);
+const signature = sigResult.signedTxXdr ?? '';
+if (!signature) throw new Error('Freighter returned empty response');
 
       // 7. Verify with API → receive JWT + founder
       setStatus('verifying');

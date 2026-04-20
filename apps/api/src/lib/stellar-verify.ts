@@ -1,36 +1,36 @@
-import { StrKey, hash } from '@stellar/stellar-sdk';
+import { TransactionBuilder, Networks } from '@stellar/stellar-sdk';
 import { randomBytes } from 'crypto';
-import * as nacl from 'tweetnacl';
 
 export function verifyWalletSignature(params: {
   publicKey: string;
-  message: string;
-  signature: string;
+  message: string;   // now the signed XDR
+  signature: string; // not used — signature is in the XDR
 }): boolean {
   try {
-    const { publicKey, message, signature } = params;
+    const { publicKey, message: signedXdr } = params;
 
-    const sigBytes    = Buffer.from(signature, 'hex');
-    const msgBytes    = Buffer.from(message, 'utf-8');
-    const pubKeyBytes = StrKey.decodeEd25519PublicKey(publicKey);
+    const tx = TransactionBuilder.fromXDR(signedXdr, Networks.TESTNET);
 
-    console.log('[verify] msgBytes hex:', msgBytes.toString('hex'));
-    console.log('[verify] sigBytes length:', sigBytes.length);
-    console.log('[verify] pubKeyBytes length:', pubKeyBytes.length);
+    // Check the transaction is signed by the expected public key
+    const signatures = (tx as any).signatures ?? [];
+    if (signatures.length === 0) return false;
 
-    // Stellar SDK's Keypair.sign() does: nacl.sign.detached(hash(data), secretKey)
-    // So verify must use: nacl.sign.detached.verify(hash(data), sig, pubKey)
-    const hashed = hash(msgBytes);
-    const result = nacl.sign.detached.verify(hashed, sigBytes, pubKeyBytes);
-    console.log('[verify] nacl with stellar hash:', result);
+    // Verify using Stellar SDK's built-in transaction verification
+    const keypairClass = require('@stellar/stellar-sdk').Keypair;
+    const keypair = keypairClass.fromPublicKey(publicKey);
+    const txHash = (tx as any).hash();
 
-    if (result) return true;
+    for (const sig of signatures) {
+      try {
+        if (keypair.verify(txHash, sig.signature())) {
+          console.log('[verify] transaction signature valid');
+          return true;
+        }
+      } catch { /* try next */ }
+    }
 
-    // Fallback: nacl with raw bytes (no hash)
-    const result2 = nacl.sign.detached.verify(msgBytes, sigBytes, pubKeyBytes);
-    console.log('[verify] nacl raw bytes:', result2);
-
-    return result2;
+    console.log('[verify] no valid signature found');
+    return false;
   } catch (e) {
     console.error('[verify] error:', e);
     return false;

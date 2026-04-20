@@ -22,72 +22,70 @@ const connectSchema = z.object({
 });
 
 // ── GET /api/auth/challenge ───────────────────────────────
-
 authRouter.get('/challenge', async (req, res, next) => {
   try {
     const { publicKey } = challengeSchema.parse(req.query);
-
     const challenge = generateChallenge();
     const expiresAt = challengeExpiresAt();
 
-    const { error } = await supabaseAdmin
-      .from('auth_challenges')
-      .insert({ public_key: publicKey, challenge, expires_at: expiresAt.toISOString() });
+    // Build a minimal Stellar transaction for the client to sign
+    const { TransactionBuilder, Account, Networks, Operation, Asset } =
+      await import('@stellar/stellar-sdk');
 
-    if (error) throw createError(error.message, 500);
+    const account = new Account(publicKey, '0');
+    const tx = new TransactionBuilder(account, {
+      fee: '100',
+      networkPassphrase: Networks.TESTNET,
+    })
+      .addOperation(Operation.manageData({
+        name: 'buildbridge_auth',
+        value: challenge,
+      }))
+      .setTimeout(300)
+      .build();
+
+    const txXdr = tx.toXDR();
+
+    // Store the challenge
+    await supabaseAdmin.from('auth_challenges').insert({
+      public_key: publicKey,
+      challenge,
+      expires_at: expiresAt.toISOString(),
+    });
 
     res.json({
       challenge,
       expiresAt: expiresAt.toISOString(),
-      message: `Sign this challenge with your Stellar wallet to authenticate with BuildBridge.\n\nChallenge: ${challenge}`,
+      message: txXdr, // send XDR as the "message" to sign
     });
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 });
-
 // ── POST /api/auth/connect ────────────────────────────────
 
 authRouter.post('/connect', async (req, res, next) => {
   try {
-    console.log('connect body:', JSON.stringify(req.body));
-    const { publicKey, challenge, signature, network } = connectSchema.parse(req.body);
+    const { publicKey, challenge, signature: signedXdr, network } = connectSchema.parse(req.body);
 
-    // 1. Look up the challenge
-    const { data: stored, error: fetchError } = await supabaseAdmin
+    // Look up challenge
+    const { data: stored } = await supabaseAdmin
       .from('auth_challenges')
       .select('*')
       .eq('challenge', challenge)
       .single();
 
-    if (fetchError || !stored) throw createError('Challenge not found. Request a new one.', 401);
-    if (stored.public_key !== publicKey) throw createError('Challenge does not match this public key.', 401);
-    if (stored.used) throw createError('Challenge has already been used.', 401);
-    if (new Date() > new Date(stored.expires_at)) throw createError('Challenge has expired. Request a new one.', 401);
+    if (!stored) throw createError('Challenge not found.', 401);
+    if (stored.used) throw createError('Challenge already used.', 401);
+    if (new Date() > new Date(stored.expires_at)) throw createError('Challenge expired.', 401);
 
-    
-    
-    // 2. Verify the Stellar wallet signature
-    // Right before verifyWalletSignature call
-const messageToSign = `Sign this challenge with your Stellar wallet to authenticate with BuildBridge.\n\nChallenge: ${challenge}`;
+    // Verify the signed transaction
+    const valid = verifyWalletSignature({
+      publicKey,
+      message: signedXdr,  // the signed XDR
+      signature: '',         // embedded in XDR
+    });
 
-// Log exact bytes to compare with frontend
-console.log('[connect] messageToSign bytes:', Buffer.from(messageToSign, 'utf-8').toString('hex'));
-console.log('[connect] messageToSign length:', messageToSign.length);
-console.log('[connect] signature hex length:', signature.length);
-console.log('[connect] messageToSign:', JSON.stringify(messageToSign));
-console.log('[connect] signature:', signature);
+    if (!valid) throw createError('Invalid wallet signature.', 401);
 
-const valid = verifyWalletSignature({ publicKey, message: messageToSign, signature });
-console.log('[connect] valid:', valid);
-
-if (!valid) throw createError('Invalid wallet signature.', 401);
-
-
-    console.log('Received signature:', signature);
-console.log('Signature length:', signature.length);
-console.log('Message:', messageToSign);
-console.log('Signature valid:', valid);
 
     // 3. Mark challenge as used
     const { error: updateError } = await supabaseAdmin
