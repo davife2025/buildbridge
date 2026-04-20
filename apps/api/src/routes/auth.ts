@@ -50,6 +50,7 @@ authRouter.get('/challenge', async (req, res, next) => {
 
 authRouter.post('/connect', async (req, res, next) => {
   try {
+    console.log('connect body:', JSON.stringify(req.body));
     const { publicKey, challenge, signature, network } = connectSchema.parse(req.body);
 
     // 1. Look up the challenge
