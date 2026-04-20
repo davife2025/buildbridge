@@ -136,11 +136,23 @@ export function useWallet(): UseWalletReturn {
       setStatus('idle');
 
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Wallet connection failed';
-      console.error('[wallet] error:', err);
-      setError(msg);
-      setStatus('error');
-    }
+  // Log full error details regardless of type
+  console.error('[wallet] full error:', JSON.stringify(err, null, 2));
+  console.error('[wallet] error type:', typeof err);
+  console.error('[wallet] error keys:', err && typeof err === 'object' ? Object.keys(err) : 'n/a');
+
+  const msg =
+    err instanceof Error
+      ? err.message
+      : typeof err === 'object' && err !== null && 'message' in err
+        ? String((err as any).message)
+        : typeof err === 'object' && err !== null && 'error' in err
+          ? String((err as any).error)
+          : 'Wallet connection failed';
+
+  setError(msg);
+  setStatus('error');
+}
   }, [setSession]);
 
   const disconnect = useCallback(async () => {
