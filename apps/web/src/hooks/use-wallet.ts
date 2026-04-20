@@ -73,7 +73,12 @@ export function useWallet(): UseWalletReturn {
 
       const sdk    = await import('@stellar/stellar-sdk');
       const server = new sdk.SorobanRpc.Server(rpcUrl);
-      const accountData = await server.getAccount(publicKey);
+      const accountData = await server.getAccount(publicKey).catch(() => {
+  throw new Error(
+    'Your Stellar account is not activated yet. ' +
+    'Please fund it at https://friendbot.stellar.org/?addr=' + publicKey
+  );
+});
 
       // Challenge value must be ≤ 64 bytes for ManageData
       const challengeValue = challenge.replace('buildbridge:', '').slice(0, 32);
@@ -163,6 +168,8 @@ export function useWallet(): UseWalletReturn {
     setStatus('idle');
     setError(null);
   }, [token, clearSession]);
+
+  
 
   return {
     status,
