@@ -1,5 +1,5 @@
 import { StrKey } from '@stellar/stellar-sdk';
-import { randomBytes, createVerify, createPublicKey } from 'crypto';
+import { randomBytes, verify as cryptoVerify, createPublicKey } from 'crypto';
 
 export function verifyWalletSignature(params: {
   publicKey: string;
@@ -13,19 +13,15 @@ export function verifyWalletSignature(params: {
     const msgBytes    = Buffer.from(message, 'utf-8');
     const pubKeyBytes = StrKey.decodeEd25519PublicKey(publicKey);
 
-    // Convert raw Ed25519 public key bytes to SubjectPublicKeyInfo DER format
-    // that Node.js crypto expects
-    const derPrefix   = Buffer.from('302a300506032b6570032100', 'hex');
-    const pubKeyDer   = Buffer.concat([derPrefix, pubKeyBytes]);
-    const pubKey      = createPublicKey({ key: pubKeyDer, format: 'der', type: 'spki' });
+    // Wrap raw Ed25519 key bytes in DER/SPKI format for Node.js
+    const derPrefix = Buffer.from('302a300506032b6570032100', 'hex');
+    const pubKeyDer = Buffer.concat([derPrefix, pubKeyBytes]);
+    const pubKey    = createPublicKey({ key: pubKeyDer, format: 'der', type: 'spki' });
 
-    // Node's Ed25519 verify does NOT hash — it verifies raw bytes
-    // This matches how Freighter's signMessage signs
-    const verifier = createVerify('Ed25519');
-    verifier.update(msgBytes);
-    const result = verifier.verify(pubKey, sigBytes);
-
-    console.log('[verify] Node Ed25519 result:', result);
+    // crypto.verify(algorithm, data, key, signature)
+    // algorithm = null means Ed25519 (no digest — signs raw bytes)
+    const result = cryptoVerify(null, msgBytes, pubKey, sigBytes);
+    console.log('[verify] result:', result);
     return result;
   } catch (e) {
     console.error('[verify] error:', e);
