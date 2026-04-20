@@ -70,6 +70,11 @@ authRouter.post('/connect', async (req, res, next) => {
     // 2. Verify the Stellar wallet signature
     // Right before verifyWalletSignature call
 const messageToSign = `Sign this challenge with your Stellar wallet to authenticate with BuildBridge.\n\nChallenge: ${challenge}`;
+
+// Log exact bytes to compare with frontend
+console.log('[connect] messageToSign bytes:', Buffer.from(messageToSign, 'utf-8').toString('hex'));
+console.log('[connect] messageToSign length:', messageToSign.length);
+console.log('[connect] signature hex length:', signature.length);
 console.log('[connect] messageToSign:', JSON.stringify(messageToSign));
 console.log('[connect] signature:', signature);
 

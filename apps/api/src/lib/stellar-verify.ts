@@ -1,5 +1,6 @@
-import { StrKey } from '@stellar/stellar-sdk';
-import { randomBytes, verify as cryptoVerify, createPublicKey } from 'crypto';
+import { StrKey, hash } from '@stellar/stellar-sdk';
+import { randomBytes } from 'crypto';
+import * as nacl from 'tweetnacl';
 
 export function verifyWalletSignature(params: {
   publicKey: string;
@@ -13,16 +14,23 @@ export function verifyWalletSignature(params: {
     const msgBytes    = Buffer.from(message, 'utf-8');
     const pubKeyBytes = StrKey.decodeEd25519PublicKey(publicKey);
 
-    // Wrap raw Ed25519 key bytes in DER/SPKI format for Node.js
-    const derPrefix = Buffer.from('302a300506032b6570032100', 'hex');
-    const pubKeyDer = Buffer.concat([derPrefix, pubKeyBytes]);
-    const pubKey    = createPublicKey({ key: pubKeyDer, format: 'der', type: 'spki' });
+    console.log('[verify] msgBytes hex:', msgBytes.toString('hex'));
+    console.log('[verify] sigBytes length:', sigBytes.length);
+    console.log('[verify] pubKeyBytes length:', pubKeyBytes.length);
 
-    // crypto.verify(algorithm, data, key, signature)
-    // algorithm = null means Ed25519 (no digest — signs raw bytes)
-    const result = cryptoVerify(null, msgBytes, pubKey, sigBytes);
-    console.log('[verify] result:', result);
-    return result;
+    // Stellar SDK's Keypair.sign() does: nacl.sign.detached(hash(data), secretKey)
+    // So verify must use: nacl.sign.detached.verify(hash(data), sig, pubKey)
+    const hashed = hash(msgBytes);
+    const result = nacl.sign.detached.verify(hashed, sigBytes, pubKeyBytes);
+    console.log('[verify] nacl with stellar hash:', result);
+
+    if (result) return true;
+
+    // Fallback: nacl with raw bytes (no hash)
+    const result2 = nacl.sign.detached.verify(msgBytes, sigBytes, pubKeyBytes);
+    console.log('[verify] nacl raw bytes:', result2);
+
+    return result2;
   } catch (e) {
     console.error('[verify] error:', e);
     return false;

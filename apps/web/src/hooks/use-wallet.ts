@@ -62,14 +62,21 @@ export function useWallet(): UseWalletReturn {
         : 'mainnet';
 
       // 5. Get auth challenge from API
-      const { challenge, message } = await authApi.getChallenge(publicKey);
+     const { challenge, message } = await authApi.getChallenge(publicKey);
 
-      // 6. Sign the challenge message with Freighter
-      setStatus('signing');
-      const sigResult = await signMessage(message, {
-        address: publicKey,
-        networkPassphrase: netDetails.networkPassphrase,
-      });
+// Log exact bytes being signed
+console.log('[wallet] message to sign:', message);
+console.log('[wallet] message bytes:', Array.from(Buffer.from(message, 'utf-8')).join(','));
+console.log('[wallet] message length:', message.length);
+   // 6. Sign the challenge message with Freighter
+setStatus('signing');
+const sigResult = await signMessage(message, {
+  address: publicKey,
+  networkPassphrase: netDetails.networkPassphrase,
+});
+
+   
+   
       if (sigResult.error) throw new Error(sigResult.error);
 
       // Freighter can return a Buffer object, Buffer instance, or string
