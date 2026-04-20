@@ -1,16 +1,14 @@
-import { StrKey } from '@stellar/stellar-sdk';
+import { StrKey, Keypair } from '@stellar/stellar-sdk';
 import { randomBytes } from 'crypto';
-import * as nacl from 'tweetnacl';
 
 export function verifyWalletSignature(params: {
   publicKey: string;
-  message: string;
+  message:   string;
   signature: string; // format: "txHash:signatureHex"
 }): boolean {
   try {
     const { publicKey, signature } = params;
 
-    // Split "txHash:sigHex"
     const colonIdx = signature.indexOf(':');
     if (colonIdx === -1) {
       console.error('[verify] invalid format — expected txHash:sigHex');
@@ -21,15 +19,16 @@ export function verifyWalletSignature(params: {
     const sigHex = signature.slice(colonIdx + 1);
 
     console.log('[verify] txHash:', txHash);
+    console.log('[verify] sigHex:', sigHex);
     console.log('[verify] sigHex length:', sigHex.length);
 
-    const txHashBytes = new Uint8Array(Buffer.from(txHash, 'hex'));
-    const sigBytes    = new Uint8Array(Buffer.from(sigHex, 'hex'));
-    const pubKeyBytes = new Uint8Array(StrKey.decodeEd25519PublicKey(publicKey));
+    const txHashBytes = Buffer.from(txHash, 'hex');
+    const sigBytes    = Buffer.from(sigHex, 'hex');
 
-    // Stellar signs txHash directly with Ed25519 — no additional hashing
-    // nacl.sign.detached.verify verifies raw Ed25519 without any digest
-    const result = nacl.sign.detached.verify(txHashBytes, sigBytes, pubKeyBytes);
+    // Keypair.verify internally uses nacl.sign.detached.verify
+    // It verifies raw bytes — no additional hashing
+    const keypair = Keypair.fromPublicKey(publicKey);
+    const result  = keypair.verify(txHashBytes, sigBytes);
 
     console.log('[verify] result:', result);
     return result;
