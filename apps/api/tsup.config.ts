@@ -5,6 +5,10 @@ export default defineConfig({
   format: ['cjs'],
   outDir: 'dist',
   noExternal: ['@buildbridge/stellar'],
-  skipNodeModulesBundle: false,
+  esbuildOptions(options) {
+    options.alias = {
+      '@buildbridge/stellar': '../../packages/stellar/src/index.ts',
+    };
+  },
   clean: true,
 });
