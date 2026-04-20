@@ -72,11 +72,17 @@ const sigResult = await signMessage(message, {
 });
 if (sigResult.error) throw new Error(sigResult.error);
 
+// DEBUG — remove after fixing
+console.log('signedMessage type:', typeof sigResult.signedMessage);
+console.log('signedMessage value:', sigResult.signedMessage);
+console.log('signedMessage isBuffer:', Buffer.isBuffer(sigResult.signedMessage));
+
 const rawSig = sigResult.signedMessage ?? '';
 const signature: string = typeof rawSig === 'string'
   ? Buffer.from(rawSig, 'base64').toString('hex')
   : Buffer.from(rawSig).toString('hex');
 
+console.log('final signature hex:', signature);
 // 7. Verify with API → receive JWT + founder
 setStatus('verifying');
 const { token: newToken, founder } = await authApi.connect({

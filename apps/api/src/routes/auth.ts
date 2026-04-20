@@ -64,11 +64,18 @@ authRouter.post('/connect', async (req, res, next) => {
     if (stored.used) throw createError('Challenge has already been used.', 401);
     if (new Date() > new Date(stored.expires_at)) throw createError('Challenge has expired. Request a new one.', 401);
 
+    
     // 2. Verify the Stellar wallet signature
     const messageToSign = `Sign this challenge with your Stellar wallet to authenticate with BuildBridge.\n\nChallenge: ${challenge}`;
     const valid = verifyWalletSignature({ publicKey, message: messageToSign, signature });
 
     if (!valid) throw createError('Invalid wallet signature.', 401);
+
+
+    console.log('Received signature:', signature);
+console.log('Signature length:', signature.length);
+console.log('Message:', messageToSign);
+console.log('Signature valid:', valid);
 
     // 3. Mark challenge as used
     const { error: updateError } = await supabaseAdmin
