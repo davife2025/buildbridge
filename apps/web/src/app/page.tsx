@@ -25,7 +25,7 @@ export default function HomePage() {
             <p className="mb-10 text-base text-gray-500 dark:text-gray-400">An Agentic AI platform on Stellar that helps founders craft investor-ready pitches, verify traction on-chain, and connect with the right investors.</p>
             <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
               <Link href="/dashboard" className="btn-primary px-8 py-3 text-base shadow-md">Launch app →</Link>
-              <a href="https://github.com/buildbridge" target="_blank" rel="noopener noreferrer" className="btn-secondary px-8 py-3 text-base">GitHub</a>
+              <a href="https://github.com/davife2025/buildbridge" target="_blank" rel="noopener noreferrer" className="btn-secondary px-8 py-3 text-base">GitHub</a>
             </div>
           </div>
         </section>
