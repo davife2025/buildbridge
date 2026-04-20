@@ -17,10 +17,9 @@ const challengeSchema = z.object({
 const connectSchema = z.object({
   publicKey: z.string().min(1),
   challenge: z.string().startsWith('buildbridge:'),
-  signature: z.string().min(1),  
+  signature: z.string().min(1),  // now full XDR
   network:   z.enum(['testnet', 'mainnet']).default('testnet'),
 });
-
 // ── GET /api/auth/challenge ───────────────────────────────
 authRouter.get('/challenge', async (req, res, next) => {
   try {
@@ -53,28 +52,31 @@ authRouter.get('/challenge', async (req, res, next) => {
 
 authRouter.post('/connect', async (req, res, next) => {
   try {
-    const { publicKey, challenge, signature: signedXdr, network } = connectSchema.parse(req.body);
+    console.log('[connect] raw body:', JSON.stringify(req.body));
+    const { publicKey, challenge, signature, network } = connectSchema.parse(req.body);
+    console.log('[connect] signature received:', signature);
 
-    // Look up challenge
-    const { data: stored } = await supabaseAdmin
+    // 1. Look up the challenge
+    const { data: stored, error: fetchError } = await supabaseAdmin
       .from('auth_challenges')
       .select('*')
       .eq('challenge', challenge)
       .single();
 
-    if (!stored) throw createError('Challenge not found.', 401);
-    if (stored.used) throw createError('Challenge already used.', 401);
-    if (new Date() > new Date(stored.expires_at)) throw createError('Challenge expired.', 401);
+    if (fetchError || !stored) throw createError('Challenge not found. Request a new one.', 401);
+    if (stored.public_key !== publicKey) throw createError('Challenge does not match this public key.', 401);
+    if (stored.used) throw createError('Challenge has already been used.', 401);
+    if (new Date() > new Date(stored.expires_at)) throw createError('Challenge has expired. Request a new one.', 401);
 
-    // Verify the signed transaction
+    // 2. Verify the signature — signature is now a full signed XDR
     const valid = verifyWalletSignature({
       publicKey,
-      message: signedXdr,  // the signed XDR
-      signature: '',         // embedded in XDR
+      message: challenge, // still passed but not used for XDR verification
+      signature,          // full signed XDR
+      network,
     });
 
     if (!valid) throw createError('Invalid wallet signature.', 401);
-
 
     // 3. Mark challenge as used
     const { error: updateError } = await supabaseAdmin
@@ -84,12 +86,12 @@ authRouter.post('/connect', async (req, res, next) => {
 
     if (updateError) throw createError(updateError.message, 500);
 
-    // 4. Upsert founder record
+    // 4. Upsert founder
     const { data: founder, error: upsertError } = await supabaseAdmin
       .from('founders')
       .upsert(
         { stellar_public_key: publicKey, network },
-        { onConflict: 'stellar_public_key' }
+        { onConflict: 'stellar_public_key' },
       )
       .select()
       .single();
@@ -97,20 +99,16 @@ authRouter.post('/connect', async (req, res, next) => {
     if (upsertError || !founder) throw createError('Failed to upsert founder.', 500);
 
     // 5. Issue JWT
-    const token = signToken({
-      founderId: founder.id,
-      publicKey,
-      network,
-    });
+    const token = signToken({ founderId: founder.id, publicKey, network });
 
     res.json({
       token,
       founder: {
-        id: founder.id,
+        id:        founder.id,
         publicKey: founder.stellar_public_key,
-        network: founder.network,
-        name: founder.name,
-        email: founder.email,
+        network:   founder.network,
+        name:      founder.name,
+        email:     founder.email,
         avatarUrl: founder.avatar_url,
         createdAt: founder.created_at,
       },
@@ -119,7 +117,6 @@ authRouter.post('/connect', async (req, res, next) => {
     next(err);
   }
 });
-
 // ── GET /api/auth/me ──────────────────────────────────────
 
 authRouter.get('/me', requireAuth, async (req, res, next) => {

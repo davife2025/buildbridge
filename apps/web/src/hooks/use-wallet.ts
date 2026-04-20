@@ -33,6 +33,7 @@ export function useWallet(): UseWalletReturn {
   const isBusy = ['detecting', 'connecting', 'signing', 'verifying'].includes(status);
 
   const connect = useCallback(async () => {
+    if (isBusy) return;
     setError(null);
     setStatus('detecting');
 
@@ -71,14 +72,15 @@ export function useWallet(): UseWalletReturn {
       // 6. Build a Stellar transaction encoding the challenge
       setStatus('signing');
 
-      const sdk    = await import('@stellar/stellar-sdk');
-      const server = new sdk.SorobanRpc.Server(rpcUrl);
+      const sdk         = await import('@stellar/stellar-sdk');
+      const server      = new sdk.SorobanRpc.Server(rpcUrl);
+
       const accountData = await server.getAccount(publicKey).catch(() => {
-  throw new Error(
-    'Your Stellar account is not activated yet. ' +
-    'Please fund it at https://friendbot.stellar.org/?addr=' + publicKey
-  );
-});
+        throw new Error(
+          'Your Stellar account is not activated. ' +
+          'Please fund it at https://friendbot.stellar.org/?addr=' + publicKey,
+        );
+      });
 
       // Challenge value must be ≤ 64 bytes for ManageData
       const challengeValue = challenge.replace('buildbridge:', '').slice(0, 32);
@@ -112,28 +114,14 @@ export function useWallet(): UseWalletReturn {
       const signedXdr = signResult.signedTxXdr;
       if (!signedXdr) throw new Error('Freighter returned no signed transaction.');
 
-      // 8. Extract signature and tx hash from signed envelope
-      const signedTx   = sdk.TransactionBuilder.fromXDR(signedXdr, netDetails.networkPassphrase);
-      const asTx       = signedTx as StellarTransaction;
-      const signatures = asTx.signatures;
+      console.log('[wallet] signedXdr preview:', signedXdr.slice(0, 60) + '...');
 
-      if (!signatures || signatures.length === 0) {
-        throw new Error('No signatures found in signed transaction.');
-      }
-
-      const signature = signatures[0]!.signature().toString('hex');
-      const txHash    = asTx.hash().toString('hex');
-
-      console.log('[wallet] txHash:', txHash);
-      console.log('[wallet] signature:', signature);
-      console.log('[wallet] signature length:', signature.length);
-
-      // 9. Verify with API — send txHash:signature so backend can verify
+      // 8. Send full signed XDR to backend — it extracts and verifies the signature
       setStatus('verifying');
       const { token: newToken, founder } = await authApi.connect({
         publicKey,
         challenge,
-        signature: `${txHash}:${signature}`,
+        signature: signedXdr,
         network,
       });
 
@@ -141,24 +129,23 @@ export function useWallet(): UseWalletReturn {
       setStatus('idle');
 
     } catch (err) {
-  // Log full error details regardless of type
-  console.error('[wallet] full error:', JSON.stringify(err, null, 2));
-  console.error('[wallet] error type:', typeof err);
-  console.error('[wallet] error keys:', err && typeof err === 'object' ? Object.keys(err) : 'n/a');
+      console.error('[wallet] full error:', JSON.stringify(err, null, 2));
+      console.error('[wallet] error type:', typeof err);
+      console.error('[wallet] error keys:', err && typeof err === 'object' ? Object.keys(err) : 'n/a');
 
-  const msg =
-    err instanceof Error
-      ? err.message
-      : typeof err === 'object' && err !== null && 'message' in err
-        ? String((err as any).message)
-        : typeof err === 'object' && err !== null && 'error' in err
-          ? String((err as any).error)
-          : 'Wallet connection failed';
+      const msg =
+        err instanceof Error
+          ? err.message
+          : typeof err === 'object' && err !== null && 'message' in err
+            ? String((err as any).message)
+            : typeof err === 'object' && err !== null && 'error' in err
+              ? String((err as any).error)
+              : 'Wallet connection failed';
 
-  setError(msg);
-  setStatus('error');
-}
-  }, [setSession]);
+      setError(msg);
+      setStatus('error');
+    }
+  }, [setSession, isBusy]);
 
   const disconnect = useCallback(async () => {
     if (token) {
@@ -168,8 +155,6 @@ export function useWallet(): UseWalletReturn {
     setStatus('idle');
     setError(null);
   }, [token, clearSession]);
-
-  
 
   return {
     status,
