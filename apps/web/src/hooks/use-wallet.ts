@@ -7,12 +7,12 @@ import { authApi } from '@/lib/api';
 type WalletStatus = 'idle' | 'detecting' | 'connecting' | 'signing' | 'verifying' | 'error';
 
 const STATUS_LABELS: Record<WalletStatus, string> = {
-  idle:      'Connect Wallet',
-  detecting: 'Detecting wallet…',
+  idle:       'Connect Wallet',
+  detecting:  'Detecting wallet…',
   connecting: 'Connecting…',
-  signing:   'Sign in Freighter…',
-  verifying: 'Verifying…',
-  error:     'Try again',
+  signing:    'Sign in Freighter…',
+  verifying:  'Verifying…',
+  error:      'Try again',
 };
 
 interface UseWalletReturn {
@@ -36,7 +36,7 @@ export function useWallet(): UseWalletReturn {
     setStatus('detecting');
 
     try {
-      // 1. Import Freighter API (dynamic import — SSR safe)
+      // 1. Dynamic import — SSR safe
       const { isConnected, requestAccess, getNetworkDetails, signMessage } =
         await import('@stellar/freighter-api');
 
@@ -64,41 +64,54 @@ export function useWallet(): UseWalletReturn {
       // 5. Get auth challenge from API
       const { challenge, message } = await authApi.getChallenge(publicKey);
 
-// 6. Sign the challenge message with Freighter
-setStatus('signing');
-const sigResult = await signMessage(message, {
-  address: publicKey,
-  networkPassphrase: netDetails.networkPassphrase,
-});
-if (sigResult.error) throw new Error(sigResult.error);
+      // 6. Sign the challenge message with Freighter
+      setStatus('signing');
+      const sigResult = await signMessage(message, {
+        address: publicKey,
+        networkPassphrase: netDetails.networkPassphrase,
+      });
+      if (sigResult.error) throw new Error(sigResult.error);
 
-const rawSig = (sigResult as any).signedMessage ?? (sigResult as any).signature ?? '';
+      // Freighter can return a Buffer object, Buffer instance, or string
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const rawSig = (sigResult as any).signedMessage ?? (sigResult as any).signature ?? '';
 
-// Handle Buffer object, Buffer instance, or string
-let signature: string;
-if (Buffer.isBuffer(rawSig)) {
-  signature = rawSig.toString('hex');
-} else if (typeof rawSig === 'object' && rawSig?.type === 'Buffer' && Array.isArray(rawSig?.data)) {
-  signature = Buffer.from(rawSig.data).toString('hex');
-} else {
-  signature = String(rawSig);
-}
+      let signature: string;
+      if (Buffer.isBuffer(rawSig)) {
+        // Native Buffer instance
+        signature = rawSig.toString('hex').padStart(128, '0');
+      } else if (
+        typeof rawSig === 'object' &&
+        rawSig?.type === 'Buffer' &&
+        Array.isArray(rawSig?.data)
+      ) {
+        // Serialised Buffer object { type: 'Buffer', data: [...] }
+        signature = Buffer.from(rawSig.data).toString('hex').padStart(128, '0');
+      } else {
+        // Plain string (base64 or hex)
+        const str = String(rawSig);
+        // If it looks like base64, decode it first
+        const isHex = /^[0-9a-fA-F]+$/.test(str);
+        signature = isHex
+          ? str.padStart(128, '0')
+          : Buffer.from(str, 'base64').toString('hex').padStart(128, '0');
+      }
 
-if (!signature) throw new Error('Freighter returned empty signature — please try again');
+      if (!signature || signature.replace(/^0+/, '') === '') {
+        throw new Error('Freighter returned an empty signature — please try again.');
+      }
 
+      // 7. Verify with API → receive JWT + founder
+      setStatus('verifying');
+      const { token: newToken, founder } = await authApi.connect({
+        publicKey,
+        challenge,
+        signature,
+        network,
+      });
 
-
-// 7. Verify with API → receive JWT + founder
-setStatus('verifying');
-const { token: newToken, founder } = await authApi.connect({
-  publicKey,
-  challenge,
-  signature,
-  network,
-});
-
-setSession(newToken, founder, publicKey);
-setStatus('idle');
+      setSession(newToken, founder, publicKey);
+      setStatus('idle');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Wallet connection failed';
       setError(msg);

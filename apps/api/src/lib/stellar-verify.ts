@@ -1,5 +1,5 @@
 import { Keypair } from '@stellar/stellar-sdk';
-import { randomBytes } from 'crypto';
+import { randomBytes, createHash } from 'crypto';
 
 export function verifyWalletSignature(params: {
   publicKey: string;
@@ -8,12 +8,27 @@ export function verifyWalletSignature(params: {
 }): boolean {
   try {
     const { publicKey, message, signature } = params;
-
     const keypair = Keypair.fromPublicKey(publicKey);
-    const messageBytes = Buffer.from(message, 'utf-8');
-    const sigBytes = Buffer.from(signature, 'hex');
+    const sigBytes = Buffer.from(signature.padStart(128, '0'), 'hex');
 
-    return keypair.verify(messageBytes, sigBytes);
+    // Try 1: raw bytes
+    try {
+      if (keypair.verify(Buffer.from(message, 'utf-8'), sigBytes)) return true;
+    } catch { /* try next */ }
+
+    // Try 2: SHA-256 hash of message
+    try {
+      const hashed = createHash('sha256').update(message).digest();
+      if (keypair.verify(hashed, sigBytes)) return true;
+    } catch { /* try next */ }
+
+    // Try 3: hash of utf-8 bytes
+    try {
+      const hashed = createHash('sha256').update(Buffer.from(message, 'utf-8')).digest();
+      if (keypair.verify(hashed, sigBytes)) return true;
+    } catch { /* failed */ }
+
+    return false;
   } catch {
     return false;
   }
