@@ -19,16 +19,16 @@ An Agentic AI platform built on Stellar that helps founders from Africa and emer
 
 ## What it does
 
-### 🤖 AI Pitch Builder
+###  AI Pitch Builder
 Kimi K2 coaches founders section by section — problem, solution, traction, team, market size, and the ask. Each section is scored, and the full pitch gets an overall investor-readiness rating with actionable feedback.
 
-### ⛓️ On-Chain Milestones
+###  On-Chain Milestones
 Founders record achievements (product launches, revenue milestones, funding rounds, partnerships) via Soroban smart contracts on Stellar. Each milestone is immutably stored and trustlessly verifiable by any investor.
 
-### 🎯 Investor Matching
+###  Investor Matching
 Founders get matched with VCs and angels based on sector, stage, geography, and check size. 20+ curated investors across Africa, Europe, and globally.
 
-### 📊 Founder Profile
+###  Founder Profile
 A public, investor-facing profile with verified on-chain traction as proof. Shareable link for investor due diligence.
 
 ---
